@@ -1,5 +1,7 @@
 const MessageService = require("../services/MessageService");
 const sendResponse = require("../utils/response");
+const multer = require("multer");
+const upload = multer(); // Sử dụng multer để xử lý file upload
 
 exports.sendMessage = async (req, res) => {
   try {
@@ -13,6 +15,8 @@ exports.sendMessage = async (req, res) => {
       self_destruct_timer,
     } = req.body;
 
+    const file = req.file; // Lấy file từ request
+
     if (!receiverId || !message_type) {
       return sendResponse(
         res,
@@ -22,16 +26,24 @@ exports.sendMessage = async (req, res) => {
       );
     }
 
-    const message = await MessageService.sendMessage(senderId, receiverId, {
-      message_type,
-      content,
-      file_id,
-      mentions,
-      self_destruct_timer,
-    });
+    const message = await MessageService.sendMessage(
+      senderId,
+      receiverId,
+      {
+        message_type,
+        content,
+        file_id,
+        mentions,
+        self_destruct_timer,
+      },
+      file
+    );
 
     sendResponse(res, 200, "Message sent successfully", "success", message);
   } catch (error) {
+    if (error.message === "File size exceeds the 10MB limit") {
+      return sendResponse(res, 400, error.message, "error");
+    }
     sendResponse(res, 500, "Error sending message", "error", {
       error: error.message,
     });

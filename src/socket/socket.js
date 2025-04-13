@@ -1,4 +1,5 @@
 const { Server } = require("socket.io");
+const MessageService = require("../services/MessageService");
 
 let io;
 const onlineUsers = new Map(); // Map để ánh xạ userId với socketId
@@ -21,14 +22,38 @@ const initializeSocket = (server) => {
       console.log(`User ${userId} is online with socket ID ${socket.id}`);
     });
 
+    // Lắng nghe sự kiện gửi tin nhắn từ client (nếu cần)
+    socket.on(
+      "sendMessage",
+      async ({ senderId, receiverId, messageData, file }) => {
+        try {
+          const message = await MessageService.sendMessage(
+            senderId,
+            receiverId,
+            messageData,
+            file
+          );
+
+          // Phát sự kiện socket cho cả người gửi và người nhận
+          [senderId, receiverId].forEach((userId) => {
+            if (onlineUsers.has(userId)) {
+              io.to(onlineUsers.get(userId)).emit("newMessage", {
+                conversationId: message.conversationId,
+                message,
+              });
+            }
+          });
+        } catch (error) {
+          console.error("Error sending message via socket:", error.message);
+          socket.emit("error", "Error sending message");
+        }
+      }
+    );
+
     // Lắng nghe sự kiện thu hồi tin nhắn
     socket.on("revokeMessage", async ({ messageId, userId }) => {
       try {
-        const result =
-          await require("../services/MessageService").revokeMessage(
-            messageId,
-            userId
-          );
+        const result = await MessageService.revokeMessage(messageId, userId);
 
         if (!result) {
           socket.emit("error", "You are not allowed to revoke this message");

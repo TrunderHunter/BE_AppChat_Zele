@@ -6,11 +6,26 @@ const {
   sendMessageToUser,
   notifyUsersAboutConversation,
   onlineUsers,
-} = require("../socket/socket"); // Import hàm gửi tin nhắn qua socket
+  io, // Import socket instance
+} = require("../socket/socket");
+const { uploadFileToS3 } = require("../utils/S3Uploader"); // Import module upload file
 
-exports.sendMessage = async (senderId, receiverId, messageData) => {
-  const { message_type, content, file_id, mentions, self_destruct_timer } =
+exports.sendMessage = async (senderId, receiverId, messageData, file) => {
+  let { message_type, content, file_id, mentions, self_destruct_timer } =
     messageData;
+
+  // Kiểm tra và thiết lập message_type
+  if (file) {
+    message_type = "file"; // Nếu có file, message_type là "file"
+  } else if (!message_type) {
+    message_type = "text"; // Mặc định là "text" nếu không được cung cấp
+  }
+
+  // Kiểm tra giá trị hợp lệ của message_type
+  const validMessageTypes = ["text", "image", "video", "file", "voice"];
+  if (!validMessageTypes.includes(message_type)) {
+    throw new Error("Invalid message type");
+  }
 
   // Kiểm tra xem người gửi và người nhận có phải là người dùng hợp lệ hay không
   const sender = await User.findById(senderId);
@@ -22,15 +37,22 @@ exports.sendMessage = async (senderId, receiverId, messageData) => {
     throw new Error("Người nhận không hợp lệ");
   }
 
+  let fileMeta = null;
+
+  if (file) {
+    fileMeta = await uploadFileToS3(file); // Sử dụng module upload file
+  }
+
   // Create a new message
   const message = new Message({
     sender_id: senderId,
     receiver_id: receiverId,
-    message_type,
+    message_type, // Đảm bảo message_type được thiết lập đúng
     content,
     file_id,
     mentions,
     "message_meta.self_destruct_timer": self_destruct_timer,
+    file_meta: fileMeta, // Thêm thông tin file
   });
 
   (await message.save()).populate(
