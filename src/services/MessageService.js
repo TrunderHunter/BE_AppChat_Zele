@@ -15,10 +15,12 @@ exports.sendMessage = async (senderId, receiverId, messageData, file) => {
     messageData;
 
   // Kiểm tra và thiết lập message_type
-  if (file) {
-    message_type = "file"; // Nếu có file, message_type là "file"
-  } else if (!message_type) {
-    message_type = "text"; // Mặc định là "text" nếu không được cung cấp
+  if (!message_type) {
+    if (file) {
+      message_type = "file"; // Nếu không có message_type và có file, thiết lập là "file"
+    } else {
+      message_type = "text"; // Mặc định là "text" nếu không được cung cấp
+    }
   }
 
   // Kiểm tra giá trị hợp lệ của message_type

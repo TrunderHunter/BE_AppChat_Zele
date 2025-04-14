@@ -10,7 +10,7 @@ exports.getConversationsByUserId = async (req, res) => {
     );
 
     if (!conversations || conversations.length === 0) {
-      return sendResponse(res, 404, "No conversations found", "error");
+      return sendResponse(res, 200, "No conversations found", {});
     }
 
     sendResponse(

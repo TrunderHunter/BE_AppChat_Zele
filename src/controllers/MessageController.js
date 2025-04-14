@@ -58,8 +58,15 @@ exports.getMessagesByConversationId = async (req, res) => {
       conversationId
     );
 
+    // Changed this condition to return empty array instead of error
     if (!messages || messages.length === 0) {
-      return sendResponse(res, 404, "No messages found", "error");
+      return sendResponse(
+        res,
+        200,
+        "No messages found for this conversation",
+        "success",
+        []
+      );
     }
 
     sendResponse(

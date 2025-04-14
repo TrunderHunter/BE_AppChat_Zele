@@ -15,7 +15,6 @@ router.get(
   MessageController.getMessagesByConversationId
 );
 
-// Route để thu hồi tin nhắn
 // http://localhost:5000/api/message/revoke/:messageId
 router.put("/revoke/:messageId", MessageController.revokeMessage);
 
