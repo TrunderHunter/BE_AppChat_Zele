@@ -106,3 +106,44 @@ exports.revokeMessage = async (req, res) => {
     });
   }
 };
+
+exports.sendGroupMessage = async (req, res) => {
+  try {
+    const senderId = req.user._id;
+    const {
+      conversationId,
+      message_type,
+      content,
+      file_id,
+      mentions,
+      self_destruct_timer,
+    } = req.body;
+    const file = req.file;
+
+    if (!conversationId) {
+      return sendResponse(res, 400, "Thiếu ID cuộc trò chuyện", "error");
+    }
+
+    const message = await MessageService.sendGroupMessage(
+      senderId,
+      conversationId,
+      {
+        message_type,
+        content,
+        file_id,
+        mentions,
+        self_destruct_timer,
+      },
+      file
+    );
+
+    sendResponse(res, 200, "Gửi tin nhắn nhóm thành công", "success", message);
+  } catch (error) {
+    if (error.message === "File size exceeds the 10MB limit") {
+      return sendResponse(res, 400, error.message, "error");
+    }
+    sendResponse(res, 500, "Error sending group message", "error", {
+      error: error.message,
+    });
+  }
+};

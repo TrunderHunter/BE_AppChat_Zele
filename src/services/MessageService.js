@@ -1,6 +1,7 @@
 const Message = require("../models/Message");
 const Conversation = require("../models/Conversation");
 const User = require("../models/User");
+const Group = require("../models/Group");
 const mongoose = require("mongoose");
 const {
   sendMessageToUser,
@@ -73,13 +74,9 @@ exports.sendMessage = async (senderId, receiverId, messageData, file) => {
       participants: [
         {
           user_id: senderId,
-          name: sender.name,
-          primary_avatar: sender.primary_avatar,
         },
         {
           user_id: receiverId,
-          name: receiver.name,
-          primary_avatar: receiver.primary_avatar,
         },
       ],
       type: "personal",
@@ -137,6 +134,136 @@ exports.sendMessage = async (senderId, receiverId, messageData, file) => {
   } else {
     console.log(`User ${receiverId} is not online. Message saved to database.`);
   }
+
+  return message;
+};
+
+// Gửi tin nhắn nhóm
+exports.sendGroupMessage = async (
+  senderId,
+  conversationId,
+  messageData,
+  file
+) => {
+  let { message_type, content, file_id, mentions, self_destruct_timer } =
+    messageData;
+
+  // Kiểm tra và thiết lập message_type
+  if (!message_type) {
+    if (file) {
+      message_type = "file";
+    } else {
+      message_type = "text";
+    }
+  }
+
+  // Kiểm tra giá trị hợp lệ của message_type
+  const validMessageTypes = ["text", "image", "video", "file", "voice"];
+  if (!validMessageTypes.includes(message_type)) {
+    throw new Error("Invalid message type");
+  }
+
+  // Tìm cuộc trò chuyện và kiểm tra nó có phải là nhóm không
+  const conversation = await Conversation.findById(conversationId);
+  if (!conversation) {
+    throw new Error("Cuộc trò chuyện không tồn tại");
+  }
+
+  if (conversation.type !== "group") {
+    throw new Error("Cuộc trò chuyện này không phải là nhóm");
+  }
+
+  // Kiểm tra người gửi có phải là thành viên của nhóm
+  const isMember = conversation.participants.some(
+    (p) => p.user_id.toString() === senderId
+  );
+
+  if (!isMember) {
+    throw new Error("Bạn không phải thành viên của nhóm này");
+  }
+
+  // Nếu nhóm có cài đặt hạn chế về việc ai có thể gửi tin nhắn
+  if (conversation.group_id) {
+    const group = await Group.findById(conversation.group_id);
+    if (group) {
+      const sender = group.members.find((m) => m.user.toString() === senderId);
+      if (sender) {
+        // Nếu chỉ admin có thể gửi tin nhắn
+        if (
+          group.settings.who_can_send_messages === "admins" &&
+          sender.role !== "admin"
+        ) {
+          throw new Error("Chỉ admin mới có thể gửi tin nhắn trong nhóm này");
+        }
+
+        // Nếu chỉ admin và moderator có thể gửi tin nhắn
+        if (
+          group.settings.who_can_send_messages === "admins_moderators" &&
+          !["admin", "moderator"].includes(sender.role)
+        ) {
+          throw new Error(
+            "Chỉ admin và moderator mới có thể gửi tin nhắn trong nhóm này"
+          );
+        }
+      }
+    }
+  }
+
+  // Xử lý file nếu có
+  let fileMeta = null;
+  if (file) {
+    fileMeta = await uploadFileToS3(file);
+  }
+
+  // Lấy thông tin người gửi
+  const sender = await User.findById(senderId);
+  if (!sender) {
+    throw new Error("Người gửi không hợp lệ");
+  }
+
+  // Tạo tin nhắn mới
+  const message = new Message({
+    sender_id: senderId,
+    receiver_id: conversationId, // Trong trường hợp nhóm, receiver_id là ID cuộc hội thoại
+    message_type,
+    content,
+    file_id,
+    mentions,
+    "message_meta.self_destruct_timer": self_destruct_timer,
+    file_meta: fileMeta,
+  });
+
+  await message.save();
+  await message.populate("sender_id", "_id name email phone primary_avatar");
+
+  // Cập nhật cuộc trò chuyện
+  conversation.last_message = message._id;
+  conversation.updated_at = Date.now();
+  conversation.messages.push({
+    message_id: message._id,
+    sender_id: senderId,
+    content: content || "Đã gửi một tệp đính kèm",
+    timestamp: message.timestamp,
+  });
+
+  await conversation.save();
+  await conversation.populate("last_message");
+
+  // Gửi thông báo cho tất cả thành viên trong nhóm
+  const memberIds = conversation.participants.map((p) => p.user_id.toString());
+
+  // Gửi thông báo cập nhật cuộc hội thoại
+  notifyUsersAboutConversation(memberIds, "updateLastMessage", conversation);
+
+  // Gửi tin nhắn đến tất cả thành viên đang online
+  memberIds.forEach((memberId) => {
+    if (onlineUsers.has(memberId) && memberId !== senderId) {
+      sendMessageToUser(memberId, "receiveGroupMessage", {
+        message,
+        conversationId,
+      });
+    }
+  });
 
   return message;
 };

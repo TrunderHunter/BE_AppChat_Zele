@@ -8,6 +8,14 @@ const MessageController = require("../controllers/MessageController");
 // http://localhost:5000/api/message/send
 router.post("/send", upload.single("file"), MessageController.sendMessage);
 
+// Route để gửi tin nhắn vào nhóm
+// http://localhost:5000/api/message/send-group
+router.post(
+  "/send-group",
+  upload.single("file"),
+  MessageController.sendGroupMessage
+);
+
 // Route để lấy tất cả các tin nhắn của một cuộc hội thoại
 // http://localhost:5000/api/message/getByConversation/:conversationId
 router.get(
