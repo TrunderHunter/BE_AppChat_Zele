@@ -25,4 +25,10 @@ router.get("/getAllUsers", UserController.getAllUsers); // Route to get all user
 // http://localhost:5000/api/user/searchByNameOrPhone?query=John
 router.get("/searchByNameOrPhone", UserController.searchByNameOrPhone); // Route to search users by name or email
 
+// http://localhost:5000/api/user/friends
+router.get("/friends", UserController.getUserFriends);
+
+// http://localhost:5000/api/user/friends/:userId
+router.get("/friends/:userId", UserController.getUserFriends);
+
 module.exports = router;

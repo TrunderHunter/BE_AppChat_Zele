@@ -8,6 +8,7 @@ const userRoutes = require("../src/routes/UserRoutes");
 const cookieParser = require("cookie-parser");
 const messageRoutes = require("../src/routes/MessageRoutes");
 const conversationRoutes = require("./routes/ConversationRoutes");
+const friendRequestRoutes = require("./routes/FriendRequestRoutes");
 const cors = require("cors");
 const http = require("http");
 const { initializeSocket } = require("./socket/socket"); // Import socket.js
@@ -53,6 +54,7 @@ app.use("/api/conversation", conversationRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/message", messageRoutes);
+app.use("/api/friend-request", friendRequestRoutes);
 
 server.listen(process.env.PORT, () => {
   console.log(`Server running on port ${process.env.PORT}`);
