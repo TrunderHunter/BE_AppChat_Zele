@@ -44,7 +44,10 @@ router.get("/:groupId/invite", GroupController.getGroupInviteLink);
 router.put("/:groupId/invite", GroupController.updateInviteLinkStatus);
 
 // POST /api/group/:groupId/invite/regenerate - Tạo lại link tham gia mới
-router.post("/:groupId/invite/regenerate", GroupController.regenerateInviteLink);
+router.post(
+  "/:groupId/invite/regenerate",
+  GroupController.regenerateInviteLink
+);
 
 // GET /api/group/join/:inviteCode - Tham gia nhóm bằng link mời
 router.get("/join/:inviteCode", GroupController.joinGroupWithInviteLink);

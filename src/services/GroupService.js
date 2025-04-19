@@ -19,10 +19,10 @@ class GroupService {
     try {
       await session.withTransaction(async () => {
         // Tạo nhóm mới với người tạo là admin đầu tiên
-        
+
         // Tạo mã mời duy nhất cho nhóm
         const inviteCode = crypto.randomBytes(8).toString("hex");
-        
+
         newGroup = new Group({
           name,
           description,
@@ -40,8 +40,8 @@ class GroupService {
           invite_link: {
             code: inviteCode,
             is_active: true,
-            created_at: new Date()
-          }
+            created_at: new Date(),
+          },
         });
 
         // Thêm các thành viên khác vào nhóm (nếu có)
@@ -367,7 +367,7 @@ class GroupService {
     }
 
     // Kiểm tra quyền hạn (chỉ admin mới có thể cập nhật trạng thái link mời)
-    const member = group.members.find(m => m.user.toString() === userId);
+    const member = group.members.find((m) => m.user.toString() === userId);
     if (!member || member.role !== "admin") {
       throw new Error("Bạn không có quyền cập nhật trạng thái link mời");
     }
@@ -379,7 +379,9 @@ class GroupService {
 
     return {
       success: true,
-      message: isActive ? "Đã kích hoạt link tham gia" : "Đã vô hiệu hóa link tham gia"
+      message: isActive
+        ? "Đã kích hoạt link tham gia"
+        : "Đã vô hiệu hóa link tham gia",
     };
   }
 
@@ -396,27 +398,27 @@ class GroupService {
     }
 
     // Kiểm tra quyền hạn (chỉ admin mới có thể tạo lại link mời)
-    const member = group.members.find(m => m.user.toString() === userId);
+    const member = group.members.find((m) => m.user.toString() === userId);
     if (!member || member.role !== "admin") {
       throw new Error("Bạn không có quyền tạo lại link tham gia");
     }
 
     // Tạo mã mời mới
     const newInviteCode = crypto.randomBytes(8).toString("hex");
-    
+
     // Cập nhật link mời mới
     group.invite_link = {
       code: newInviteCode,
       is_active: true,
-      created_at: new Date()
+      created_at: new Date(),
     };
-    
+
     group.updated_at = new Date();
     await group.save();
 
     return {
       invite_link: group.invite_link,
-      message: "Đã tạo lại link tham gia mới"
+      message: "Đã tạo lại link tham gia mới",
     };
   }
 
@@ -428,7 +430,7 @@ class GroupService {
   static async joinGroupWithInviteLink(inviteCode, userId) {
     // Tìm nhóm có chứa mã mời này
     const group = await Group.findOne({
-      "invite_link.code": inviteCode
+      "invite_link.code": inviteCode,
     });
 
     if (!group) {
@@ -490,7 +492,7 @@ class GroupService {
     }
 
     // Kiểm tra quyền hạn để xem link mời
-    const member = group.members.find(m => m.user.toString() === userId);
+    const member = group.members.find((m) => m.user.toString() === userId);
     if (!member) {
       throw new Error("Bạn không phải thành viên của nhóm này");
     }
@@ -501,7 +503,8 @@ class GroupService {
 
     if (
       (canShareLink === "admins" && memberRole !== "admin") ||
-      (canShareLink === "admins_moderators" && !["admin", "moderator"].includes(memberRole))
+      (canShareLink === "admins_moderators" &&
+        !["admin", "moderator"].includes(memberRole))
     ) {
       throw new Error("Bạn không có quyền xem link tham gia nhóm");
     }
@@ -509,7 +512,7 @@ class GroupService {
     // Trả về link mời
     return {
       invite_link: group.invite_link,
-      can_share: true
+      can_share: true,
     };
   }
 

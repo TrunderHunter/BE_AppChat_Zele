@@ -194,4 +194,127 @@ module.exports = function (io, socket, onlineUsers) {
       socket.emit("error", error.message);
     }
   });
+
+  /**
+   * Xử lý sự kiện tham gia nhóm qua link mời
+   */
+  socket.on("joinGroupWithInviteLink", async ({ inviteCode, userId }) => {
+    try {
+      const updatedGroup = await GroupService.joinGroupWithInviteLink(
+        inviteCode,
+        userId
+      );
+
+      // Thông báo cho tất cả thành viên đang online về thành viên mới tham gia
+      const memberIds = updatedGroup.members.map((member) =>
+        member.user._id ? member.user._id.toString() : member.user.toString()
+      );
+
+      // Tìm thông tin người mới tham gia
+      const newMember = updatedGroup.members.find(
+        (member) =>
+          (member.user._id
+            ? member.user._id.toString()
+            : member.user.toString()) === userId
+      );
+
+      memberIds.forEach((id) => {
+        if (onlineUsers.has(id) && id !== userId) {
+          // Không gửi thông báo cho người mới tham gia
+          io.to(onlineUsers.get(id)).emit("memberJoinedViaLink", {
+            groupId: updatedGroup._id,
+            newMember: {
+              user: newMember.user,
+              role: newMember.role,
+              joined_at: newMember.joined_at,
+            },
+            group: updatedGroup,
+          });
+        }
+      });
+
+      // Thông báo riêng cho người tham gia mới về thông tin nhóm
+      if (onlineUsers.has(userId)) {
+        io.to(onlineUsers.get(userId)).emit("joinedGroupViaLink", {
+          group: updatedGroup,
+        });
+      }
+
+      // Lấy thông tin conversation liên kết với nhóm để cập nhật cho người mới
+      const conversation = await Conversation.findById(
+        updatedGroup.conversation_id
+      ).populate("last_message");
+
+      if (conversation && onlineUsers.has(userId)) {
+        io.to(onlineUsers.get(userId)).emit("newConversation", {
+          conversation: conversation,
+          group: updatedGroup,
+        });
+      }
+    } catch (error) {
+      socket.emit("error", error.message);
+    }
+  });
+
+  /**
+   * Xử lý sự kiện cập nhật trạng thái link mời
+   */
+  socket.on("updateInviteLinkStatus", async ({ groupId, isActive, userId }) => {
+    try {
+      const result = await GroupService.updateInviteLinkStatus(
+        groupId,
+        isActive,
+        userId
+      );
+
+      // Thông báo cho tất cả admin và moderator về việc cập nhật trạng thái link
+      const group = await GroupService.getGroupById(groupId, userId);
+      const adminModIds = group.members
+        .filter((member) => ["admin", "moderator"].includes(member.role))
+        .map((member) =>
+          member.user._id ? member.user._id.toString() : member.user.toString()
+        );
+
+      adminModIds.forEach((id) => {
+        if (onlineUsers.has(id)) {
+          io.to(onlineUsers.get(id)).emit("inviteLinkStatusUpdated", {
+            groupId,
+            isActive,
+            updatedBy: userId,
+          });
+        }
+      });
+    } catch (error) {
+      socket.emit("error", error.message);
+    }
+  });
+
+  /**
+   * Xử lý sự kiện tạo lại link mời mới
+   */
+  socket.on("regenerateInviteLink", async ({ groupId, userId }) => {
+    try {
+      const result = await GroupService.regenerateInviteLink(groupId, userId);
+
+      // Thông báo cho tất cả admin và moderator về link mới
+      const group = await GroupService.getGroupById(groupId, userId);
+      const adminModIds = group.members
+        .filter((member) => ["admin", "moderator"].includes(member.role))
+        .map((member) =>
+          member.user._id ? member.user._id.toString() : member.user.toString()
+        );
+
+      adminModIds.forEach((id) => {
+        if (onlineUsers.has(id)) {
+          io.to(onlineUsers.get(id)).emit("inviteLinkRegenerated", {
+            groupId,
+            inviteLink: result.invite_link,
+            regeneratedBy: userId,
+          });
+        }
+      });
+    } catch (error) {
+      socket.emit("error", error.message);
+    }
+  });
 };

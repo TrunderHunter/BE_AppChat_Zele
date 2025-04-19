@@ -1,6 +1,7 @@
 const GroupService = require("../services/GroupService");
 const sendResponse = require("../utils/response");
 const { uploadFileToS3 } = require("../utils/S3Uploader");
+const socket = require("../socket/socket");
 
 class GroupController {
   /**
@@ -295,6 +296,15 @@ class GroupController {
         inviteCode,
         userId
       );
+
+      // Kích hoạt sự kiện socket cho việc tham gia nhóm qua link
+      const io = socket.getIO();
+      io.emit("user_joined_group_via_link", {
+        groupId: group._id,
+        userId: userId,
+        group: group,
+      });
+
       return sendResponse(res, 200, "Tham gia nhóm thành công", "success", {
         group,
       });
@@ -317,6 +327,15 @@ class GroupController {
         isActive,
         userId
       );
+
+      // Kích hoạt sự kiện socket cho việc cập nhật trạng thái link
+      const io = socket.getIO();
+      io.emit("invite_link_status_updated", {
+        groupId,
+        isActive,
+        updatedBy: userId,
+      });
+
       return sendResponse(res, 200, result.message, "success", result);
     } catch (error) {
       return sendResponse(res, 500, error.message, "error");
@@ -336,6 +355,17 @@ class GroupController {
       // Tạo URL đầy đủ để client có thể sử dụng
       const baseUrl = `${req.protocol}://${req.get("host")}`;
       const inviteUrl = `${baseUrl}/api/group/join/${result.invite_link.code}`;
+
+      // Kích hoạt sự kiện socket cho việc tạo lại link mới
+      const io = socket.getIO();
+      io.emit("invite_link_regenerated", {
+        groupId,
+        inviteLink: {
+          ...result.invite_link,
+          url: inviteUrl,
+        },
+        regeneratedBy: userId,
+      });
 
       return sendResponse(res, 200, result.message, "success", {
         invite_link: {
