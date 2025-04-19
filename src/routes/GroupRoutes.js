@@ -36,4 +36,17 @@ router.get("/:groupId", GroupController.getGroupById);
 // GET /api/group
 router.get("/", GroupController.getGroupsByUserId);
 
+// Routes cho link tham gia nhóm
+// GET /api/group/:groupId/invite - Lấy link tham gia nhóm
+router.get("/:groupId/invite", GroupController.getGroupInviteLink);
+
+// PUT /api/group/:groupId/invite - Cập nhật trạng thái link tham gia (bật/tắt)
+router.put("/:groupId/invite", GroupController.updateInviteLinkStatus);
+
+// POST /api/group/:groupId/invite/regenerate - Tạo lại link tham gia mới
+router.post("/:groupId/invite/regenerate", GroupController.regenerateInviteLink);
+
+// GET /api/group/join/:inviteCode - Tham gia nhóm bằng link mời
+router.get("/join/:inviteCode", GroupController.joinGroupWithInviteLink);
+
 module.exports = router;

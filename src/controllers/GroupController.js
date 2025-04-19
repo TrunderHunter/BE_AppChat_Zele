@@ -256,6 +256,97 @@ class GroupController {
       sendResponse(res, 500, error.message, "error");
     }
   }
+
+  /**
+   * Lấy link tham gia nhóm
+   */
+  static async getGroupInviteLink(req, res) {
+    try {
+      const { groupId } = req.params;
+      const userId = req.user._id;
+
+      const result = await GroupService.getGroupInviteLink(groupId, userId);
+
+      // Tạo URL đầy đủ để client có thể sử dụng
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      const inviteUrl = `${baseUrl}/api/group/join/${result.invite_link.code}`;
+
+      return sendResponse(res, 200, "Lấy link tham gia thành công", "success", {
+        invite_link: {
+          ...result.invite_link,
+          url: inviteUrl,
+        },
+        can_share: result.can_share,
+      });
+    } catch (error) {
+      return sendResponse(res, 500, error.message, "error");
+    }
+  }
+
+  /**
+   * Tham gia nhóm bằng link mời
+   */
+  static async joinGroupWithInviteLink(req, res) {
+    try {
+      const { inviteCode } = req.params;
+      const userId = req.user._id;
+
+      const group = await GroupService.joinGroupWithInviteLink(
+        inviteCode,
+        userId
+      );
+      return sendResponse(res, 200, "Tham gia nhóm thành công", "success", {
+        group,
+      });
+    } catch (error) {
+      return sendResponse(res, 500, error.message, "error");
+    }
+  }
+
+  /**
+   * Cập nhật trạng thái của link tham gia (bật/tắt)
+   */
+  static async updateInviteLinkStatus(req, res) {
+    try {
+      const { groupId } = req.params;
+      const { isActive } = req.body;
+      const userId = req.user._id;
+
+      const result = await GroupService.updateInviteLinkStatus(
+        groupId,
+        isActive,
+        userId
+      );
+      return sendResponse(res, 200, result.message, "success", result);
+    } catch (error) {
+      return sendResponse(res, 500, error.message, "error");
+    }
+  }
+
+  /**
+   * Tạo lại link tham gia mới
+   */
+  static async regenerateInviteLink(req, res) {
+    try {
+      const { groupId } = req.params;
+      const userId = req.user._id;
+
+      const result = await GroupService.regenerateInviteLink(groupId, userId);
+
+      // Tạo URL đầy đủ để client có thể sử dụng
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      const inviteUrl = `${baseUrl}/api/group/join/${result.invite_link.code}`;
+
+      return sendResponse(res, 200, result.message, "success", {
+        invite_link: {
+          ...result.invite_link,
+          url: inviteUrl,
+        },
+      });
+    } catch (error) {
+      return sendResponse(res, 500, error.message, "error");
+    }
+  }
 }
 
 module.exports = GroupController;
