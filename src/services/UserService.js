@@ -136,3 +136,16 @@ exports.searchUsersByNameOrPhone = async (query) => {
 
   return users.map(sanitizeUser);
 };
+
+exports.getUserFriends = async (userId) => {
+  const user = await User.findById(userId).populate(
+    "friends",
+    "name email phone primary_avatar"
+  );
+
+  if (!user) {
+    throw new Error("Không tìm thấy người dùng");
+  }
+
+  return user.friends;
+};

@@ -134,3 +134,27 @@ exports.searchByNameOrPhone = async (req, res) => {
     });
   }
 };
+
+exports.getUserFriends = async (req, res) => {
+  try {
+    const userId = req.params.userId || req.user._id;
+
+    const friends = await UserService.getUserFriends(userId);
+
+    if (!friends || friends.length === 0) {
+      return sendResponse(res, 200, "Không có bạn bè nào", "success", []);
+    }
+
+    sendResponse(
+      res,
+      200,
+      "Lấy danh sách bạn bè thành công",
+      "success",
+      friends
+    );
+  } catch (error) {
+    sendResponse(res, 500, "Lỗi khi lấy danh sách bạn bè", "error", {
+      error: error.message,
+    });
+  }
+};
