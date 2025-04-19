@@ -11,4 +11,12 @@ router.get(
   ConversationController.getConversationsByUserId
 );
 
+// Route để kiểm tra đoạn hội thoại giữa hai người dùng
+// http://localhost:5000/api/conversation/checkBetweenUsers
+router.get(
+  "/checkBetweenUsers",
+  authMiddleware,
+  ConversationController.getConversationBetweenUsers
+);
+
 module.exports = router;

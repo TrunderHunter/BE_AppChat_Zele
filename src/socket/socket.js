@@ -5,7 +5,6 @@ const messageHandlers = require("./handlers/messageHandlers");
 const friendRequestHandlers = require("./handlers/friendRequestHandlers");
 const groupHandlers = require("./handlers/groupHandlers");
 const connectionHandlers = require("./handlers/connectionHandlers");
-
 let io;
 const onlineUsers = new Map(); // Map để ánh xạ userId với socketId
 

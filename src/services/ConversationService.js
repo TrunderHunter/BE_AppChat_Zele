@@ -36,3 +36,50 @@ exports.getConversationsByUserId = async (userId) => {
 
   return formattedConversations;
 };
+exports.getConversationBetweenUsers = async (userId1, userId2) => {
+  console.log("userId1:", userId1);
+  console.log("userId2:", userId2);
+
+  // 1. Kiểm tra format ObjectId
+  if (
+    !mongoose.isValidObjectId(userId1) ||
+    !mongoose.isValidObjectId(userId2)
+  ) {
+    throw new Error("Invalid user IDs");
+  }
+
+  // 2. Query conversation giữa hai user, để Mongoose tự cast chuỗi → ObjectId
+  const conversation = await Conversation.findOne({
+    type: "personal",
+    participants: {
+      $all: [
+        { $elemMatch: { user_id: userId1 } },
+        { $elemMatch: { user_id: userId2 } }
+      ]
+    }
+  })
+    .populate("last_message")
+    .populate({
+      path: "messages",
+      options: { sort: { createdAt: 1 } }
+    })
+    .populate("participants.user_id");
+
+  if (!conversation) {
+    return null;
+  }
+
+  // 3. Format lại participants để trả về đúng structure
+  const formattedParticipants = conversation.participants.map((p) => ({
+    user_id: p.user_id._id,
+    name: p.user_id.name,
+    primary_avatar: p.user_id.primary_avatar,
+    _id: p._id,
+  }));
+
+  return {
+    ...conversation.toObject(),
+    participants: formattedParticipants,
+    messages: conversation.messages || [],
+  };
+};
