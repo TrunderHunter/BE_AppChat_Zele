@@ -377,6 +377,50 @@ class GroupController {
       return sendResponse(res, 500, error.message, "error");
     }
   }
+
+  /**
+   * Xóa nhóm
+   */
+  static async deleteGroup(req, res) {
+    try {
+      const { groupId } = req.params;
+      const userId = req.user._id;
+
+      if (!groupId) {
+        return sendResponse(res, 400, "ID nhóm là bắt buộc", "error");
+      }
+
+      // Lấy thông tin nhóm trước khi xóa để thông báo cho các thành viên
+      const groupToDelete = await GroupService.getGroupById(groupId, userId);
+
+      // Thực hiện xóa nhóm
+      const result = await GroupService.deleteGroup(groupId, userId);
+
+      // Kích hoạt sự kiện socket để thông báo cho tất cả thành viên về việc nhóm bị xóa
+      if (groupToDelete) {
+        const io = socket.getIO();
+        const memberIds = groupToDelete.members.map((member) =>
+          member.user._id ? member.user._id.toString() : member.user.toString()
+        );
+
+        io.emit("group_deleted", {
+          groupId,
+          conversationId: groupToDelete.conversation_id,
+          deletedBy: userId,
+          affectedMembers: memberIds,
+        });
+      }
+
+      return sendResponse(res, 200, "Xóa nhóm thành công", "success", result);
+    } catch (error) {
+      return sendResponse(
+        res,
+        error.message.includes("không có quyền") ? 403 : 500,
+        error.message,
+        "error"
+      );
+    }
+  }
 }
 
 module.exports = GroupController;

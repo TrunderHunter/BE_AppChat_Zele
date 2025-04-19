@@ -317,4 +317,42 @@ module.exports = function (io, socket, onlineUsers) {
       socket.emit("error", error.message);
     }
   });
+
+  /**
+   * Xử lý sự kiện xóa nhóm
+   */
+  socket.on("deleteGroup", async ({ groupId, userId }) => {
+    try {
+      // Lấy thông tin nhóm trước khi xóa để thông báo cho các thành viên
+      let groupToDelete;
+      try {
+        groupToDelete = await GroupService.getGroupById(groupId, userId);
+      } catch (error) {
+        socket.emit("error", error.message);
+        return;
+      }
+
+      // Thực hiện xóa nhóm
+      const result = await GroupService.deleteGroup(groupId, userId);
+
+      // Thông báo cho tất cả thành viên đang online về việc nhóm bị xóa
+      if (groupToDelete) {
+        const memberIds = groupToDelete.members.map((member) =>
+          member.user._id ? member.user._id.toString() : member.user.toString()
+        );
+
+        memberIds.forEach((id) => {
+          if (onlineUsers.has(id)) {
+            io.to(onlineUsers.get(id)).emit("groupDeleted", {
+              groupId,
+              conversationId: groupToDelete.conversation_id,
+              deletedBy: userId,
+            });
+          }
+        });
+      }
+    } catch (error) {
+      socket.emit("error", error.message);
+    }
+  });
 };

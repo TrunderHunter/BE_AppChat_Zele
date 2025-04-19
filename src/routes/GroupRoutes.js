@@ -28,6 +28,10 @@ router.put("/member/role", GroupController.changeRoleMember);
 // PUT /api/group/:groupId
 router.put("/:groupId", upload.single("avatar"), GroupController.updateGroup);
 
+// Xóa nhóm
+// DELETE /api/group/:groupId
+router.delete("/:groupId", GroupController.deleteGroup);
+
 // Lấy thông tin chi tiết nhóm
 // GET /api/group/:groupId
 router.get("/:groupId", GroupController.getGroupById);

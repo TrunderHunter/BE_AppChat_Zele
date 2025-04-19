@@ -560,6 +560,57 @@ class GroupService {
 
     return groups;
   }
+
+  /**
+   * Xóa nhóm chat
+   * @param {String} groupId - ID của nhóm cần xóa
+   * @param {String} userId - ID của người thực hiện xóa (phải là admin)
+   */
+  static async deleteGroup(groupId, userId) {
+    const session = await mongoose.startSession();
+
+    try {
+      await session.withTransaction(async () => {
+        // Kiểm tra nhóm tồn tại
+        const group = await Group.findById(groupId);
+        if (!group) {
+          throw new Error("Nhóm không tồn tại");
+        }
+
+        // Kiểm tra quyền xóa (chỉ admin mới có quyền xóa nhóm)
+        const member = group.members.find((m) => m.user.toString() === userId);
+        if (!member || member.role !== "admin") {
+          throw new Error("Bạn không có quyền xóa nhóm này");
+        }
+
+        // Lấy conversation_id để xóa sau khi xóa nhóm
+        const conversationId = group.conversation_id;
+
+        // Xóa nhóm
+        await Group.findByIdAndDelete(groupId, { session });
+
+        // Xóa conversation liên quan nếu có
+        if (conversationId) {
+          await Conversation.findByIdAndDelete(conversationId, { session });
+        }
+
+        return {
+          deletedGroupId: groupId,
+          deletedConversationId: conversationId,
+        };
+      });
+
+      return {
+        success: true,
+        message: "Xóa nhóm thành công",
+        groupId,
+      };
+    } catch (error) {
+      throw new Error(`Không thể xóa nhóm: ${error.message}`);
+    } finally {
+      session.endSession();
+    }
+  }
 }
 
 module.exports = GroupService;
