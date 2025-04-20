@@ -20,4 +20,6 @@ router.get(
   FriendRequestController.getSentFriendRequests
 );
 
+router.delete('/cancel/:requestId', authMiddleware, FriendRequestController.cancelFriendRequest);
+
 module.exports = router;

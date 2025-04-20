@@ -122,6 +122,38 @@ class FriendRequestService {
       "name email"
     );
   }
+  static async cancelFriendRequest(requestId, userId){
+    try {
+      // Find the friend request
+      const friendRequest = await FriendRequest.findById(requestId);
+      
+      if (!friendRequest) {
+        throw new Error('Không tìm thấy lời mời kết bạn');
+      }
+      
+      // Log the IDs for debugging
+      console.log(`Service: Request ID: ${requestId}`);
+      console.log(`Service: User ID attempting to cancel: ${userId}`);
+      console.log(`Service: Sender ID from request: ${friendRequest.sender}`);
+      
+      // Convert ObjectId to string for comparison
+      const senderId = friendRequest.sender.toString();
+      
+      // Skip permission check if userId matches sender or is not provided
+      if (userId && senderId !== userId) {
+        console.log(`Permission error: User ${userId} tried to cancel request ${requestId} sent by ${senderId}`);
+        throw new Error('Bạn không có quyền hủy lời mời kết bạn này');
+      }
+      
+      // Delete the friend request
+      await FriendRequest.findByIdAndDelete(requestId);
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error in cancelFriendRequest service:', error);
+      throw error;
+    }
+  }
 }
 
 module.exports = FriendRequestService;
