@@ -2,6 +2,7 @@ const Group = require("../models/Group");
 const User = require("../models/User");
 const Conversation = require("../models/Conversation");
 const mongoose = require("mongoose");
+const crypto = require("crypto");
 
 class GroupService {
   /**
@@ -18,6 +19,10 @@ class GroupService {
     try {
       await session.withTransaction(async () => {
         // Tạo nhóm mới với người tạo là admin đầu tiên
+
+        // Tạo mã mời duy nhất cho nhóm
+        const inviteCode = crypto.randomBytes(8).toString("hex");
+
         newGroup = new Group({
           name,
           description,
@@ -32,6 +37,11 @@ class GroupService {
           ],
           created_at: new Date(),
           updated_at: new Date(),
+          invite_link: {
+            code: inviteCode,
+            is_active: true,
+            created_at: new Date(),
+          },
         });
 
         // Thêm các thành viên khác vào nhóm (nếu có)
@@ -344,6 +354,169 @@ class GroupService {
   }
 
   /**
+   * Cập nhật trạng thái của link tham gia nhóm (bật/tắt)
+   * @param {String} groupId - ID nhóm
+   * @param {Boolean} isActive - Trạng thái mới của link
+   * @param {String} userId - ID của người thực hiện cập nhật
+   */
+  static async updateInviteLinkStatus(groupId, isActive, userId) {
+    // Kiểm tra nhóm tồn tại
+    const group = await Group.findById(groupId);
+    if (!group) {
+      throw new Error("Nhóm không tồn tại");
+    }
+
+    // Kiểm tra quyền hạn (chỉ admin mới có thể cập nhật trạng thái link mời)
+    const member = group.members.find((m) => m.user.toString() === userId);
+    if (!member || member.role !== "admin") {
+      throw new Error("Bạn không có quyền cập nhật trạng thái link mời");
+    }
+
+    // Cập nhật trạng thái của link mời
+    group.invite_link.is_active = isActive;
+    group.updated_at = new Date();
+    await group.save();
+
+    return {
+      success: true,
+      message: isActive
+        ? "Đã kích hoạt link tham gia"
+        : "Đã vô hiệu hóa link tham gia",
+    };
+  }
+
+  /**
+   * Tạo lại link tham gia mới (nếu link cũ bị lộ hoặc không an toàn)
+   * @param {String} groupId - ID nhóm
+   * @param {String} userId - ID của người thực hiện cập nhật
+   */
+  static async regenerateInviteLink(groupId, userId) {
+    // Kiểm tra nhóm tồn tại
+    const group = await Group.findById(groupId);
+    if (!group) {
+      throw new Error("Nhóm không tồn tại");
+    }
+
+    // Kiểm tra quyền hạn (chỉ admin mới có thể tạo lại link mời)
+    const member = group.members.find((m) => m.user.toString() === userId);
+    if (!member || member.role !== "admin") {
+      throw new Error("Bạn không có quyền tạo lại link tham gia");
+    }
+
+    // Tạo mã mời mới
+    const newInviteCode = crypto.randomBytes(8).toString("hex");
+
+    // Cập nhật link mời mới
+    group.invite_link = {
+      code: newInviteCode,
+      is_active: true,
+      created_at: new Date(),
+    };
+
+    group.updated_at = new Date();
+    await group.save();
+
+    return {
+      invite_link: group.invite_link,
+      message: "Đã tạo lại link tham gia mới",
+    };
+  }
+
+  /**
+   * Kiểm tra và sử dụng link mời để tham gia nhóm
+   * @param {String} inviteCode - Mã mời
+   * @param {String} userId - ID người dùng muốn tham gia nhóm
+   */
+  static async joinGroupWithInviteLink(inviteCode, userId) {
+    // Tìm nhóm có chứa mã mời này
+    const group = await Group.findOne({
+      "invite_link.code": inviteCode,
+    });
+
+    if (!group) {
+      throw new Error("Link tham gia không tồn tại");
+    }
+
+    // Kiểm tra link có còn hoạt động không
+    if (!group.invite_link.is_active) {
+      throw new Error("Link tham gia đã bị vô hiệu hóa");
+    }
+
+    // Kiểm tra người dùng đã là thành viên chưa
+    const isAlreadyMember = group.members.some(
+      (m) => m.user.toString() === userId
+    );
+    if (isAlreadyMember) {
+      throw new Error("Bạn đã là thành viên của nhóm này");
+    }
+
+    // Kiểm tra người dùng tồn tại
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new Error("Người dùng không tồn tại");
+    }
+
+    // Thêm thành viên vào nhóm
+    group.members.push({
+      user: userId,
+      role: "member",
+      joined_at: new Date(),
+    });
+
+    group.updated_at = new Date();
+    await group.save();
+
+    // Cập nhật cuộc hội thoại
+    await Conversation.findByIdAndUpdate(group.conversation_id, {
+      $push: { participants: { user_id: userId } },
+      updated_at: new Date(),
+    });
+
+    // Trả về nhóm đã cập nhật
+    return await Group.findById(group._id).populate({
+      path: "members.user",
+      select: "name email phone primary_avatar",
+    });
+  }
+
+  /**
+   * Lấy link tham gia nhóm
+   * @param {String} groupId - ID nhóm
+   * @param {String} userId - ID người dùng yêu cầu
+   */
+  static async getGroupInviteLink(groupId, userId) {
+    // Kiểm tra nhóm tồn tại
+    const group = await Group.findById(groupId);
+    if (!group) {
+      throw new Error("Nhóm không tồn tại");
+    }
+
+    // Kiểm tra quyền hạn để xem link mời
+    const member = group.members.find((m) => m.user.toString() === userId);
+    if (!member) {
+      throw new Error("Bạn không phải thành viên của nhóm này");
+    }
+
+    // Kiểm tra quyền chia sẻ link mời
+    const canShareLink = group.settings.who_can_share_invite_link;
+    const memberRole = member.role;
+
+    if (
+      (canShareLink === "admins" && memberRole !== "admin") ||
+      (canShareLink === "admins_moderators" &&
+        !["admin", "moderator"].includes(memberRole))
+    ) {
+      throw new Error("Bạn không có quyền xem link tham gia nhóm");
+    }
+
+    // Trả về link mời
+    return {
+      invite_link: group.invite_link,
+      can_share: true,
+    };
+  }
+
+  /**
    * Lấy thông tin chi tiết của nhóm
    * @param {String} groupId - ID nhóm
    * @param {String} userId - ID người dùng đang xem
@@ -386,6 +559,57 @@ class GroupService {
       .sort({ updated_at: -1 });
 
     return groups;
+  }
+
+  /**
+   * Xóa nhóm chat
+   * @param {String} groupId - ID của nhóm cần xóa
+   * @param {String} userId - ID của người thực hiện xóa (phải là admin)
+   */
+  static async deleteGroup(groupId, userId) {
+    const session = await mongoose.startSession();
+
+    try {
+      await session.withTransaction(async () => {
+        // Kiểm tra nhóm tồn tại
+        const group = await Group.findById(groupId);
+        if (!group) {
+          throw new Error("Nhóm không tồn tại");
+        }
+
+        // Kiểm tra quyền xóa (chỉ admin mới có quyền xóa nhóm)
+        const member = group.members.find((m) => m.user.toString() === userId);
+        if (!member || member.role !== "admin") {
+          throw new Error("Bạn không có quyền xóa nhóm này");
+        }
+
+        // Lấy conversation_id để xóa sau khi xóa nhóm
+        const conversationId = group.conversation_id;
+
+        // Xóa nhóm
+        await Group.findByIdAndDelete(groupId, { session });
+
+        // Xóa conversation liên quan nếu có
+        if (conversationId) {
+          await Conversation.findByIdAndDelete(conversationId, { session });
+        }
+
+        return {
+          deletedGroupId: groupId,
+          deletedConversationId: conversationId,
+        };
+      });
+
+      return {
+        success: true,
+        message: "Xóa nhóm thành công",
+        groupId,
+      };
+    } catch (error) {
+      throw new Error(`Không thể xóa nhóm: ${error.message}`);
+    } finally {
+      session.endSession();
+    }
   }
 }
 

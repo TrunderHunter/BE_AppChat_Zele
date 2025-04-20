@@ -1,6 +1,7 @@
 const GroupService = require("../services/GroupService");
 const sendResponse = require("../utils/response");
 const { uploadFileToS3 } = require("../utils/S3Uploader");
+const socket = require("../socket/socket");
 
 class GroupController {
   /**
@@ -254,6 +255,170 @@ class GroupController {
       );
     } catch (error) {
       sendResponse(res, 500, error.message, "error");
+    }
+  }
+
+  /**
+   * Lấy link tham gia nhóm
+   */
+  static async getGroupInviteLink(req, res) {
+    try {
+      const { groupId } = req.params;
+      const userId = req.user._id;
+
+      const result = await GroupService.getGroupInviteLink(groupId, userId);
+
+      // Tạo URL đầy đủ để client có thể sử dụng
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      const inviteUrl = `${baseUrl}/api/group/join/${result.invite_link.code}`;
+
+      return sendResponse(res, 200, "Lấy link tham gia thành công", "success", {
+        invite_link: {
+          ...result.invite_link,
+          url: inviteUrl,
+        },
+        can_share: result.can_share,
+      });
+    } catch (error) {
+      return sendResponse(res, 500, error.message, "error");
+    }
+  }
+
+  /**
+   * Tham gia nhóm bằng link mời
+   */
+  static async joinGroupWithInviteLink(req, res) {
+    try {
+      const { inviteCode } = req.params;
+      const userId = req.user._id;
+
+      const group = await GroupService.joinGroupWithInviteLink(
+        inviteCode,
+        userId
+      );
+
+      // Kích hoạt sự kiện socket cho việc tham gia nhóm qua link
+      const io = socket.getIO();
+      io.emit("user_joined_group_via_link", {
+        groupId: group._id,
+        userId: userId,
+        group: group,
+      });
+
+      return sendResponse(res, 200, "Tham gia nhóm thành công", "success", {
+        group,
+      });
+    } catch (error) {
+      return sendResponse(res, 500, error.message, "error");
+    }
+  }
+
+  /**
+   * Cập nhật trạng thái của link tham gia (bật/tắt)
+   */
+  static async updateInviteLinkStatus(req, res) {
+    try {
+      const { groupId } = req.params;
+      const { isActive } = req.body;
+      const userId = req.user._id;
+
+      const result = await GroupService.updateInviteLinkStatus(
+        groupId,
+        isActive,
+        userId
+      );
+
+      // Kích hoạt sự kiện socket cho việc cập nhật trạng thái link
+      const io = socket.getIO();
+      io.emit("invite_link_status_updated", {
+        groupId,
+        isActive,
+        updatedBy: userId,
+      });
+
+      return sendResponse(res, 200, result.message, "success", result);
+    } catch (error) {
+      return sendResponse(res, 500, error.message, "error");
+    }
+  }
+
+  /**
+   * Tạo lại link tham gia mới
+   */
+  static async regenerateInviteLink(req, res) {
+    try {
+      const { groupId } = req.params;
+      const userId = req.user._id;
+
+      const result = await GroupService.regenerateInviteLink(groupId, userId);
+
+      // Tạo URL đầy đủ để client có thể sử dụng
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      const inviteUrl = `${baseUrl}/api/group/join/${result.invite_link.code}`;
+
+      // Kích hoạt sự kiện socket cho việc tạo lại link mới
+      const io = socket.getIO();
+      io.emit("invite_link_regenerated", {
+        groupId,
+        inviteLink: {
+          ...result.invite_link,
+          url: inviteUrl,
+        },
+        regeneratedBy: userId,
+      });
+
+      return sendResponse(res, 200, result.message, "success", {
+        invite_link: {
+          ...result.invite_link,
+          url: inviteUrl,
+        },
+      });
+    } catch (error) {
+      return sendResponse(res, 500, error.message, "error");
+    }
+  }
+
+  /**
+   * Xóa nhóm
+   */
+  static async deleteGroup(req, res) {
+    try {
+      const { groupId } = req.params;
+      const userId = req.user._id;
+
+      if (!groupId) {
+        return sendResponse(res, 400, "ID nhóm là bắt buộc", "error");
+      }
+
+      // Lấy thông tin nhóm trước khi xóa để thông báo cho các thành viên
+      const groupToDelete = await GroupService.getGroupById(groupId, userId);
+
+      // Thực hiện xóa nhóm
+      const result = await GroupService.deleteGroup(groupId, userId);
+
+      // Kích hoạt sự kiện socket để thông báo cho tất cả thành viên về việc nhóm bị xóa
+      if (groupToDelete) {
+        const io = socket.getIO();
+        const memberIds = groupToDelete.members.map((member) =>
+          member.user._id ? member.user._id.toString() : member.user.toString()
+        );
+
+        io.emit("group_deleted", {
+          groupId,
+          conversationId: groupToDelete.conversation_id,
+          deletedBy: userId,
+          affectedMembers: memberIds,
+        });
+      }
+
+      return sendResponse(res, 200, "Xóa nhóm thành công", "success", result);
+    } catch (error) {
+      return sendResponse(
+        res,
+        error.message.includes("không có quyền") ? 403 : 500,
+        error.message,
+        "error"
+      );
     }
   }
 }

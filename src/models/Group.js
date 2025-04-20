@@ -33,6 +33,16 @@ const GroupSchema = new mongoose.Schema({
       enum: ["all", "admins_moderators", "admins"],
       default: "admins",
     },
+    who_can_share_invite_link: {
+      type: String,
+      enum: ["all", "admins_moderators", "admins"],
+      default: "all", // Mặc định tất cả các thành viên đều có thể chia sẻ link
+    },
+  },
+  invite_link: {
+    code: { type: String, required: true, unique: true }, // Link cố định, không trùng giữa các nhóm
+    is_active: { type: Boolean, default: true }, // Có thể tắt/bật link mời
+    created_at: { type: Date, default: Date.now },
   },
   conversation_id: {
     type: mongoose.Schema.Types.ObjectId,
