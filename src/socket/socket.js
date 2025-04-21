@@ -5,6 +5,7 @@ const messageHandlers = require("./handlers/messageHandlers");
 const friendRequestHandlers = require("./handlers/friendRequestHandlers");
 const groupHandlers = require("./handlers/groupHandlers");
 const connectionHandlers = require("./handlers/connectionHandlers");
+const callHandlers = require("./handlers/callHandlers"); // Thêm import callHandlers
 let io;
 const onlineUsers = new Map(); // Map để ánh xạ userId với socketId
 
@@ -28,6 +29,7 @@ const initializeSocket = (server) => {
     messageHandlers(io, socket, onlineUsers);
     friendRequestHandlers(io, socket, onlineUsers);
     groupHandlers(io, socket, onlineUsers);
+    callHandlers(io, socket, onlineUsers); // Thêm callHandlers
   });
 };
 
