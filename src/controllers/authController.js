@@ -93,12 +93,31 @@ const checkAuthentication = async (req, res) => {
     if (authResult.isAuthenticated) {
       sendResponse(res, 200, "Người dùng đã xác thực", "success", {
         user: authResult.user,
+        isAuthenticated: true,
       });
     } else {
       sendResponse(res, 401, authResult.message, "error");
     }
   } catch (error) {
     sendResponse(res, 500, "Lỗi khi kiểm tra xác thực", "error", {
+      error: error.message,
+    });
+  }
+};
+
+const logoutUser = (req, res) => {
+  try {
+    // Xóa cookie JWT
+    res.cookie("jwt", "", {
+      httpOnly: true,
+      expires: new Date(0), // Thiết lập ngày hết hạn trong quá khứ để xóa cookie
+      sameSite: "strict",
+      secure: process.env.NODE_ENV === "production",
+    });
+
+    sendResponse(res, 200, "Đăng xuất thành công!", "success");
+  } catch (error) {
+    sendResponse(res, 500, "Đăng xuất thất bại", "error", {
       error: error.message,
     });
   }
@@ -112,4 +131,5 @@ module.exports = {
   forgotPassword,
   resetPassword,
   checkAuthentication,
+  logoutUser,
 };
