@@ -39,18 +39,12 @@ const UserSchema = new mongoose.Schema({
     type: String, // URL of the primary avatar
     default: null, // Default is null if no primary avatar is set
   },
+  friends: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+  ],
 });
-
-// UserSchema.set("toJSON", {
-//   transform: (doc, ret) => {
-//     // Chỉ giữ lại các trường cần thiết
-//     return {
-//       _id: ret._id,
-//       name: ret.name,
-//       email: ret.email,
-//       phone: ret.phone,
-//     };
-//   },
-// });
 
 module.exports = mongoose.model("User", UserSchema);

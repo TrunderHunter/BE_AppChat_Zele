@@ -5,8 +5,6 @@ const ConversationSchema = new mongoose.Schema({
   participants: [
     {
       user_id: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-      name: { type: String },
-      primary_avatar: { type: String },
     },
   ],
   type: {
@@ -14,7 +12,13 @@ const ConversationSchema = new mongoose.Schema({
     enum: ["personal", "group", "channel"],
     default: "personal",
   },
+  group_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Group",
+  },
   last_message: { type: mongoose.Schema.Types.ObjectId, ref: "Message" },
+  name: { type: String }, // Tên của nhóm chat (chỉ sử dụng cho nhóm)
+  avatar: { type: String }, // Avatar của nhóm (chỉ sử dụng cho nhóm)
   messages: [
     {
       message_id: { type: mongoose.Schema.Types.ObjectId, ref: "Message" },

@@ -7,6 +7,7 @@ const {
   loginUser,
   forgotPassword,
   resetPassword,
+  checkAuthentication,
 } = require("../controllers/authController");
 
 // Đăng ký người dùng
@@ -26,6 +27,9 @@ router.post("/forgot-password", forgotPassword);
 
 // Đặt lại mật khẩu
 router.post("/reset-password", resetPassword);
+
+// Kiểm tra xác thực người dùng hiện tại
+router.get("/check-auth", checkAuthentication);
 
 // Route bảo vệ (ví dụ)
 router.get("/profile", (req, res) => {
