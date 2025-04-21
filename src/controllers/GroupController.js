@@ -1,7 +1,7 @@
 const GroupService = require("../services/GroupService");
 const sendResponse = require("../utils/response");
 const { uploadFileToS3 } = require("../utils/S3Uploader");
-const socket = require("../socket/socket");
+const { io } = require("../socket/socket");
 
 class GroupController {
   /**
@@ -298,12 +298,13 @@ class GroupController {
       );
 
       // Kích hoạt sự kiện socket cho việc tham gia nhóm qua link
-      const io = socket.getIO();
-      io.emit("user_joined_group_via_link", {
-        groupId: group._id,
-        userId: userId,
-        group: group,
-      });
+      if (io) {
+        io.emit("user_joined_group_via_link", {
+          groupId: group._id,
+          userId: userId,
+          group: group,
+        });
+      }
 
       return sendResponse(res, 200, "Tham gia nhóm thành công", "success", {
         group,
@@ -329,12 +330,13 @@ class GroupController {
       );
 
       // Kích hoạt sự kiện socket cho việc cập nhật trạng thái link
-      const io = socket.getIO();
-      io.emit("invite_link_status_updated", {
-        groupId,
-        isActive,
-        updatedBy: userId,
-      });
+      if (io) {
+        io.emit("invite_link_status_updated", {
+          groupId,
+          isActive,
+          updatedBy: userId,
+        });
+      }
 
       return sendResponse(res, 200, result.message, "success", result);
     } catch (error) {
@@ -357,15 +359,16 @@ class GroupController {
       const inviteUrl = `${baseUrl}/api/group/join/${result.invite_link.code}`;
 
       // Kích hoạt sự kiện socket cho việc tạo lại link mới
-      const io = socket.getIO();
-      io.emit("invite_link_regenerated", {
-        groupId,
-        inviteLink: {
-          ...result.invite_link,
-          url: inviteUrl,
-        },
-        regeneratedBy: userId,
-      });
+      if (io) {
+        io.emit("invite_link_regenerated", {
+          groupId,
+          inviteLink: {
+            ...result.invite_link,
+            url: inviteUrl,
+          },
+          regeneratedBy: userId,
+        });
+      }
 
       return sendResponse(res, 200, result.message, "success", {
         invite_link: {
@@ -398,17 +401,18 @@ class GroupController {
 
       // Kích hoạt sự kiện socket để thông báo cho tất cả thành viên về việc nhóm bị xóa
       if (groupToDelete) {
-        const io = socket.getIO();
         const memberIds = groupToDelete.members.map((member) =>
           member.user._id ? member.user._id.toString() : member.user.toString()
         );
 
-        io.emit("group_deleted", {
-          groupId,
-          conversationId: groupToDelete.conversation_id,
-          deletedBy: userId,
-          affectedMembers: memberIds,
-        });
+        if (io) {
+          io.emit("group_deleted", {
+            groupId,
+            conversationId: groupToDelete.conversation_id,
+            deletedBy: userId,
+            affectedMembers: memberIds,
+          });
+        }
       }
 
       return sendResponse(res, 200, "Xóa nhóm thành công", "success", result);
