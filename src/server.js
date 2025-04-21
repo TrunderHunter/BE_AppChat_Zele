@@ -25,7 +25,12 @@ initializeSocket(server); // Khởi tạo Socket.IO
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.use(cors());
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL || "*",
+    credentials: true, // Cho phép cookie được gửi từ client
+  })
+);
 
 app.use((req, res, next) => {
   res.header(
