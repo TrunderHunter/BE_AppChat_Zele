@@ -79,6 +79,31 @@ const resetPassword = async (req, res) => {
   }
 };
 
+const checkAuthentication = async (req, res) => {
+  try {
+    const token =
+      req.cookies?.jwt || req.headers["authorization"]?.split(" ")[1];
+
+    if (!token) {
+      return sendResponse(res, 401, "Không tìm thấy token xác thực", "error");
+    }
+
+    const authResult = await AuthService.checkAuth(token);
+
+    if (authResult.isAuthenticated) {
+      sendResponse(res, 200, "Người dùng đã xác thực", "success", {
+        user: authResult.user,
+      });
+    } else {
+      sendResponse(res, 401, authResult.message, "error");
+    }
+  } catch (error) {
+    sendResponse(res, 500, "Lỗi khi kiểm tra xác thực", "error", {
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   registerUser,
   verifyOTP,
@@ -86,4 +111,5 @@ module.exports = {
   loginUser,
   forgotPassword,
   resetPassword,
+  checkAuthentication,
 };

@@ -43,6 +43,7 @@ const openRoutes = [
   "/api/auth/resend-otp",
   "/api/auth/forgot-password",
   "/api/auth/reset-password",
+  "/api/auth/check-auth",
 ];
 app.use((req, res, next) => {
   if (openRoutes.includes(req.path)) {

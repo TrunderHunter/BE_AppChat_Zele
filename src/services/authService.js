@@ -3,7 +3,7 @@ const generateOTP = require("../utils/generateOTP");
 const bcrypt = require("bcryptjs");
 const transporter = require("../config/email");
 const handleValidationError = require("../utils/errorHandler");
-const { generateToken } = require("../utils/jwt");
+const { generateToken, verifyToken } = require("../utils/jwt");
 const crypto = require("crypto");
 const sanitizeUser = require("../utils/sanitizeUser");
 
@@ -200,6 +200,37 @@ class AuthService {
       password_reset_otp: null,
       password_reset_otp_expiry: null,
     });
+  }
+
+  static async checkAuth(token) {
+    if (!token) {
+      throw new Error("Token không tồn tại!");
+    }
+
+    try {
+      // Xác thực token
+      const decoded = verifyToken(token);
+
+      // Kiểm tra xem người dùng có tồn tại trong hệ thống không
+      const userId = decoded.userId;
+      const user = await UserRepository.findUserByIdOrEmail(userId);
+
+      if (!user) {
+        throw new Error("Người dùng không tồn tại!");
+      }
+
+      // Trả về thông tin người dùng đã được xử lý an toàn
+      return {
+        isAuthenticated: true,
+        user: sanitizeUser(user),
+      };
+    } catch (error) {
+      // Xử lý các trường hợp lỗi
+      return {
+        isAuthenticated: false,
+        message: error.message || "Token không hợp lệ!",
+      };
+    }
   }
 }
 
