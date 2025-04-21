@@ -26,3 +26,16 @@ exports.getConversationsByUserId = async (req, res) => {
     });
   }
 };
+exports.getConversationBetweenUsers = async (req, res) => {
+  try {
+    const { userId1, userId2 } = req.query;
+    const conversation = await ConversationService.getConversationBetweenUsers(userId1, userId2);
+    if (conversation) {
+      res.status(200).json({ status: "success", data: conversation });
+    } else {
+      res.status(404).json({ status: "not_found", message: "No conversation found" });
+    }
+  } catch (error) {
+    res.status(500).json({ status: "error", message: error.message });
+  }
+};
