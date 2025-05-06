@@ -11,7 +11,13 @@ const {
 } = require("../socket/socket");
 const { uploadFileToS3 } = require("../utils/S3Uploader"); // Import module upload file
 
-exports.sendMessage = async (senderId, receiverId, messageData, file) => {
+exports.sendMessage = async (
+  senderId,
+  receiverId,
+  messageData,
+  file,
+  skipSocketNotification = false
+) => {
   let { message_type, content, file_id, mentions, self_destruct_timer } =
     messageData;
 
@@ -43,7 +49,30 @@ exports.sendMessage = async (senderId, receiverId, messageData, file) => {
   let fileMeta = null;
 
   if (file) {
-    fileMeta = await uploadFileToS3(file); // Sử dụng module upload file
+    try {
+      console.log("Bắt đầu upload file:", file.originalname || file.name);
+      fileMeta = await uploadFileToS3(file); // Sử dụng module upload file
+      console.log("File đã được upload thành công:", fileMeta);
+    } catch (error) {
+      console.error("Lỗi khi upload file:", error);
+      throw new Error(`Lỗi khi upload file: ${error.message}`);
+    }
+  }
+
+  // Đảm bảo content luôn có giá trị, ngay cả khi gửi file
+  if (!content && file) {
+    // Tạo nội dung mặc định dựa trên loại file
+    if (message_type === "image") {
+      content = "Đã gửi một hình ảnh";
+    } else if (message_type === "video") {
+      content = "Đã gửi một video";
+    } else if (message_type === "voice") {
+      content = "Đã gửi một tin nhắn thoại";
+    } else {
+      content = "Đã gửi một tệp đính kèm";
+    }
+  } else if (!content) {
+    content = ""; // Đảm bảo content không phải null hoặc undefined
   }
 
   // Create a new message
@@ -58,7 +87,15 @@ exports.sendMessage = async (senderId, receiverId, messageData, file) => {
     file_meta: fileMeta, // Thêm thông tin file
   });
 
-  (await message.save()).populate(
+  await message.save();
+  console.log("Tin nhắn đã được lưu vào db:", {
+    messageId: message._id,
+    type: message.message_type,
+    hasFileMeta: !!message.file_meta,
+    fileMetaDetails: message.file_meta,
+  });
+
+  await message.populate(
     "sender_id receiver_id",
     "_id name email phone primary_avatar"
   );
@@ -85,7 +122,7 @@ exports.sendMessage = async (senderId, receiverId, messageData, file) => {
         {
           message_id: message._id,
           sender_id: senderId,
-          content: content,
+          content: content, // Sử dụng content đã được đảm bảo có giá trị
           timestamp: message.timestamp,
         },
       ],
@@ -94,44 +131,48 @@ exports.sendMessage = async (senderId, receiverId, messageData, file) => {
     await conversation.populate("last_message");
 
     // Gửi thông báo qua WebSocket cho cả hai người dùng về đoạn hội thoại mới
-    notifyUsersAboutConversation(
-      [senderId, receiverId],
-      "newConversation",
-      conversation
-    );
+    if (!skipSocketNotification) {
+      notifyUsersAboutConversation(
+        [senderId, receiverId],
+        "newConversation",
+        conversation
+      );
 
-    // Gửi thông báo qua WebSocket
-    notifyUsersAboutConversation(
-      [senderId, receiverId],
-      "updateLastMessage",
-      conversation
-    );
+      // Gửi thông báo qua WebSocket
+      notifyUsersAboutConversation(
+        [senderId, receiverId],
+        "updateLastMessage",
+        conversation
+      );
+    }
   } else {
     conversation.last_message = message._id;
     conversation.updated_at = Date.now();
     conversation.messages.push({
       message_id: message._id,
       sender_id: senderId,
-      content: content,
+      content: content, // Sử dụng content đã được đảm bảo có giá trị
       timestamp: message.timestamp,
     });
 
     await conversation.populate("last_message");
 
     // Gửi thông báo qua WebSocket
-    notifyUsersAboutConversation(
-      [senderId, receiverId],
-      "updateLastMessage",
-      conversation
-    );
+    if (!skipSocketNotification) {
+      notifyUsersAboutConversation(
+        [senderId, receiverId],
+        "updateLastMessage",
+        conversation
+      );
+    }
   }
 
   await conversation.save();
 
   // Gửi tin nhắn qua socket cho người nhận nếu họ đang online
-  if (onlineUsers.has(receiverId)) {
+  if (!skipSocketNotification && onlineUsers.has(receiverId)) {
     sendMessageToUser(receiverId, "receiveMessage", message);
-  } else {
+  } else if (!skipSocketNotification) {
     console.log(`User ${receiverId} is not online. Message saved to database.`);
   }
 
@@ -143,7 +184,8 @@ exports.sendGroupMessage = async (
   senderId,
   conversationId,
   messageData,
-  file
+  file,
+  skipSocketNotification = false
 ) => {
   let { message_type, content, file_id, mentions, self_destruct_timer } =
     messageData;
@@ -215,6 +257,22 @@ exports.sendGroupMessage = async (
     fileMeta = await uploadFileToS3(file);
   }
 
+  // Đảm bảo content luôn có giá trị, ngay cả khi gửi file
+  if (!content && file) {
+    // Tạo nội dung mặc định dựa trên loại file
+    if (message_type === "image") {
+      content = "Đã gửi một hình ảnh";
+    } else if (message_type === "video") {
+      content = "Đã gửi một video";
+    } else if (message_type === "voice") {
+      content = "Đã gửi một tin nhắn thoại";
+    } else {
+      content = "Đã gửi một tệp đính kèm";
+    }
+  } else if (!content) {
+    content = ""; // Đảm bảo content không phải null hoặc undefined
+  }
+
   // Lấy thông tin người gửi
   const sender = await User.findById(senderId);
   if (!sender) {
@@ -242,7 +300,7 @@ exports.sendGroupMessage = async (
   conversation.messages.push({
     message_id: message._id,
     sender_id: senderId,
-    content: content || "Đã gửi một tệp đính kèm",
+    content: content, // Sử dụng content đã được đảm bảo có giá trị
     timestamp: message.timestamp,
   });
 
@@ -252,22 +310,25 @@ exports.sendGroupMessage = async (
   // Gửi thông báo cho tất cả thành viên trong nhóm
   const memberIds = conversation.participants.map((p) => p.user_id.toString());
 
-  // Gửi thông báo cập nhật cuộc hội thoại
-  notifyUsersAboutConversation(memberIds, "updateLastMessage", conversation);
+  if (!skipSocketNotification) {
+    // Gửi thông báo cập nhật cuộc hội thoại
+    notifyUsersAboutConversation(memberIds, "updateLastMessage", conversation);
 
-  // Gửi tin nhắn đến tất cả thành viên đang online
-  memberIds.forEach((memberId) => {
-    if (onlineUsers.has(memberId) && memberId !== senderId) {
-      sendMessageToUser(memberId, "receiveGroupMessage", {
-        message,
-        conversationId,
-      });
-    }
-  });
+    // Gửi tin nhắn đến tất cả thành viên đang online
+    memberIds.forEach((memberId) => {
+      if (onlineUsers.has(memberId) && memberId !== senderId) {
+        sendMessageToUser(memberId, "receiveGroupMessage", {
+          message,
+          conversationId,
+        });
+      }
+    });
+  }
 
   return message;
 };
 
+// Lấy tất cả tin nhắn trong một cuộc hội thoại
 exports.getMessagesByConversationId = async (conversationId) => {
   // Kiểm tra ObjectId hợp lệ
   if (!mongoose.Types.ObjectId.isValid(conversationId)) {
@@ -290,6 +351,7 @@ exports.getMessagesByConversationId = async (conversationId) => {
   return messages;
 };
 
+// Thu hồi tin nhắn
 exports.revokeMessage = async (messageId, userId) => {
   // Kiểm tra xem tin nhắn có tồn tại không
   const message = await Message.findById(messageId);

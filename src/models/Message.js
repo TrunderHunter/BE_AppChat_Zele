@@ -18,6 +18,12 @@ const MessageSchema = new mongoose.Schema({
   },
   content: { type: String },
   file_id: { type: mongoose.Schema.Types.ObjectId, ref: "File" },
+  file_meta: {
+    url: { type: String },
+    file_type: { type: String },
+    file_name: { type: String },
+    file_size: { type: Number },
+  },
   timestamp: { type: Date, default: Date.now },
   status: {
     type: String,

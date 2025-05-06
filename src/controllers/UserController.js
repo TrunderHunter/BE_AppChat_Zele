@@ -1,10 +1,11 @@
 const UserService = require("../services/UserService");
 const sendResponse = require("../utils/response");
+const S3Uploader = require("../utils/S3Uploader");
 
 exports.updateUser = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { name, dob, phone, avatar } = req.body;
+    const { name, dob, phone, avatar, gender } = req.body;
     // Kiểm tra các trường bắt buộc (theo schema)
     if (!name || !phone) {
       return sendResponse(res, 400, "Name and phone are required", "error");
@@ -16,6 +17,9 @@ exports.updateUser = async (req, res) => {
     }
     if (avatar) {
       updateData.avatar = avatar;
+    }
+    if (gender) {
+      updateData.gender = gender;
     }
 
     const updatedUser = await UserService.updateUserById(userId, updateData);
@@ -156,5 +160,40 @@ exports.getUserFriends = async (req, res) => {
     sendResponse(res, 500, "Lỗi khi lấy danh sách bạn bè", "error", {
       error: error.message,
     });
+  }
+};
+
+exports.uploadAvatar = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    let avatarUrl;
+
+    // Trường hợp 1: Người dùng tải lên file hình ảnh
+    if (req.file) {
+      const uploadResult = await S3Uploader.uploadFileToS3(req.file);
+      avatarUrl = uploadResult.url;
+    }
+    // Trường hợp 2: Người dùng gửi URL hình ảnh
+    else if (req.body.imageUrl) {
+      avatarUrl = req.body.imageUrl;
+    } else {
+      return sendResponse(
+        res,
+        400,
+        "Không tìm thấy file hình ảnh hoặc URL hình ảnh",
+        "error"
+      );
+    }
+
+    // Cập nhật avatar trong cơ sở dữ liệu
+    const updatedUser = await UserService.addOrUpdateAvatar(userId, avatarUrl);
+
+    sendResponse(res, 200, "Tải lên ảnh đại diện thành công", "success", {
+      user: updatedUser,
+      avatarUrl: avatarUrl,
+    });
+  } catch (error) {
+    console.error("Lỗi khi tải lên avatar:", error);
+    sendResponse(res, 500, `Lỗi khi tải lên avatar: ${error.message}`, "error");
   }
 };

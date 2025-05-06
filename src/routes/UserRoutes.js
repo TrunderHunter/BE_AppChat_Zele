@@ -16,6 +16,13 @@ router.put(
   UserController.addOrUpdateAvatar
 );
 
+// http://localhost:5000/api/user/upload-avatar/:userId
+router.post(
+  "/upload-avatar/:userId",
+  upload.single("avatar"),
+  UserController.uploadAvatar
+);
+
 // http://localhost:5000/api/user/getUser
 router.get("/getUser", UserController.getUserByIdOrEmail); // Route to get user by ID or email
 

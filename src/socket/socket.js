@@ -16,8 +16,10 @@ const onlineUsers = new Map(); // Map để ánh xạ userId với socketId
 const initializeSocket = (server) => {
   io = new Server(server, {
     cors: {
-      origin: "*", // Cho phép tất cả các domain (có thể giới hạn domain cụ thể)
+      origin: process.env.CLIENT_URL || "*",
       methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      credentials: true, // Cho phép credentials (cookies, authorization headers)
+      allowedHeaders: ["Content-Type", "Authorization"],
     },
   });
 
