@@ -1,4 +1,5 @@
 const MessageService = require("../../services/MessageService");
+const Conversation = require("../../models/Conversation"); // Thêm import Conversation
 
 /**
  * Handler cho các sự kiện liên quan đến tin nhắn
@@ -17,6 +18,14 @@ module.exports = function (io, socket, onlineUsers) {
           messageData,
         });
 
+        // Kiểm tra xem đã có cuộc trò chuyện giữa hai người dùng chưa
+        const existingConversation = await Conversation.findOne({
+          "participants.user_id": { $all: [senderId, receiverId] },
+          participants: { $size: 2 },
+        }).populate("last_message");
+
+        const isNewConversation = !existingConversation;
+
         // Gọi service để lưu tin nhắn, nhưng tắt tính năng gửi thông báo socket
         // bằng cách thêm tham số skipSocketNotification
         const message = await MessageService.sendMessage(
@@ -26,6 +35,37 @@ module.exports = function (io, socket, onlineUsers) {
           file,
           true // skipSocketNotification = true
         );
+
+        // Lấy cuộc trò chuyện đã được cập nhật (cũ hoặc mới)
+        const updatedConversation = await Conversation.findOne({
+          "participants.user_id": { $all: [senderId, receiverId] },
+          participants: { $size: 2 },
+        }).populate("last_message");
+
+        // Nếu là cuộc trò chuyện mới, gửi thông báo newConversation
+        if (isNewConversation) {
+          [senderId, receiverId].forEach((userId) => {
+            if (onlineUsers.has(userId)) {
+              console.log(`Emitting newConversation to user ${userId}`);
+              io.to(onlineUsers.get(userId)).emit(
+                "newConversation",
+                updatedConversation
+              );
+            }
+          });
+        }
+
+        // Luôn gửi thông báo updateLastMessage cho cả cuộc trò chuyện cũ và mới
+        [senderId, receiverId].forEach((userId) => {
+          if (onlineUsers.has(userId)) {
+            console.log(`Emitting updateLastMessage to user ${userId}`);
+            io.to(onlineUsers.get(userId)).emit(
+              "updateLastMessage",
+              updatedConversation._id,
+              updatedConversation.last_message
+            );
+          }
+        });
 
         // Thay vì để MessageService gửi thông báo, chúng ta sẽ gửi từ đây
         // Phát sự kiện socket cho cả người gửi và người nhận

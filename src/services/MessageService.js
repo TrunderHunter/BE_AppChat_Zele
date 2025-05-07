@@ -130,19 +130,36 @@ exports.sendMessage = async (
 
     await conversation.populate("last_message");
 
+    // Populate thông tin người tham gia
+    await conversation.populate({
+      path: "participants.user_id",
+      select: "_id name email phone primary_avatar",
+    });
+
+    // Chuyển đổi định dạng dữ liệu cho phù hợp
+    const formattedConversation = {
+      ...conversation.toObject(),
+      participants: conversation.participants.map((participant) => ({
+        user_id: participant.user_id._id,
+        name: participant.user_id.name,
+        primary_avatar: participant.user_id.primary_avatar,
+        _id: participant._id,
+      })),
+    };
+
     // Gửi thông báo qua WebSocket cho cả hai người dùng về đoạn hội thoại mới
     if (!skipSocketNotification) {
       notifyUsersAboutConversation(
         [senderId, receiverId],
         "newConversation",
-        conversation
+        formattedConversation
       );
 
       // Gửi thông báo qua WebSocket
       notifyUsersAboutConversation(
         [senderId, receiverId],
         "updateLastMessage",
-        conversation
+        formattedConversation
       );
     }
   } else {
@@ -157,12 +174,29 @@ exports.sendMessage = async (
 
     await conversation.populate("last_message");
 
+    // Populate thông tin người tham gia
+    await conversation.populate({
+      path: "participants.user_id",
+      select: "_id name email phone primary_avatar",
+    });
+
+    // Chuyển đổi định dạng dữ liệu cho phù hợp
+    const formattedConversation = {
+      ...conversation.toObject(),
+      participants: conversation.participants.map((participant) => ({
+        user_id: participant.user_id._id,
+        name: participant.user_id.name,
+        primary_avatar: participant.user_id.primary_avatar,
+        _id: participant._id,
+      })),
+    };
+
     // Gửi thông báo qua WebSocket
     if (!skipSocketNotification) {
       notifyUsersAboutConversation(
         [senderId, receiverId],
         "updateLastMessage",
-        conversation
+        formattedConversation
       );
     }
   }
@@ -307,12 +341,35 @@ exports.sendGroupMessage = async (
   await conversation.save();
   await conversation.populate("last_message");
 
-  // Gửi thông báo cho tất cả thành viên trong nhóm
-  const memberIds = conversation.participants.map((p) => p.user_id.toString());
+  // Populate thông tin người tham gia
+  await conversation.populate({
+    path: "participants.user_id",
+    select: "_id name email phone primary_avatar",
+  });
+
+  // Chuyển đổi định dạng dữ liệu cho phù hợp với yêu cầu
+  const formattedConversation = {
+    ...conversation.toObject(),
+    participants: conversation.participants.map((participant) => ({
+      user_id: participant.user_id._id,
+      name: participant.user_id.name,
+      primary_avatar: participant.user_id.primary_avatar,
+      _id: participant._id,
+    })),
+  };
+
+  // Lấy danh sách ID của tất cả thành viên trong nhóm
+  const memberIds = conversation.participants.map((p) =>
+    p.user_id._id.toString()
+  );
 
   if (!skipSocketNotification) {
     // Gửi thông báo cập nhật cuộc hội thoại
-    notifyUsersAboutConversation(memberIds, "updateLastMessage", conversation);
+    notifyUsersAboutConversation(
+      memberIds,
+      "updateLastMessage",
+      formattedConversation
+    );
 
     // Gửi tin nhắn đến tất cả thành viên đang online
     memberIds.forEach((memberId) => {

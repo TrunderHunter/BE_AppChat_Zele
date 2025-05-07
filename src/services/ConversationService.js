@@ -36,6 +36,7 @@ exports.getConversationsByUserId = async (userId) => {
 
   return formattedConversations;
 };
+
 exports.getConversationBetweenUsers = async (userId1, userId2) => {
   console.log("userId1:", userId1);
   console.log("userId2:", userId2);
@@ -54,14 +55,14 @@ exports.getConversationBetweenUsers = async (userId1, userId2) => {
     participants: {
       $all: [
         { $elemMatch: { user_id: userId1 } },
-        { $elemMatch: { user_id: userId2 } }
-      ]
-    }
+        { $elemMatch: { user_id: userId2 } },
+      ],
+    },
   })
     .populate("last_message")
     .populate({
       path: "messages",
-      options: { sort: { createdAt: 1 } }
+      options: { sort: { createdAt: 1 } },
     })
     .populate("participants.user_id");
 

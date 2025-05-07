@@ -1,5 +1,5 @@
 const CallService = require("../services/CallService");
-const { successResponse, errorResponse } = require("../utils/response");
+const sendResponse = require("../utils/response");
 
 /**
  * Controller xử lý các request API liên quan đến cuộc gọi
@@ -18,9 +18,15 @@ class CallController {
       const skip = parseInt(req.query.skip) || 0;
 
       const calls = await CallService.getCallHistory(userId, limit, skip);
-      return successResponse(res, "Lấy lịch sử cuộc gọi thành công", calls);
+      return sendResponse(
+        res,
+        200,
+        "Lấy lịch sử cuộc gọi thành công",
+        "success",
+        calls
+      );
     } catch (error) {
-      return errorResponse(res, error.message, 500);
+      return sendResponse(res, 500, error.message, "error");
     }
   }
 
@@ -35,13 +41,19 @@ class CallController {
       const { callId } = req.params;
 
       if (!callId) {
-        return errorResponse(res, "ID cuộc gọi không hợp lệ", 400);
+        return sendResponse(res, 400, "ID cuộc gọi không hợp lệ", "error");
       }
 
       const call = await CallService.getCallById(callId);
-      return successResponse(res, "Lấy thông tin cuộc gọi thành công", call);
+      return sendResponse(
+        res,
+        200,
+        "Lấy thông tin cuộc gọi thành công",
+        "success",
+        call
+      );
     } catch (error) {
-      return errorResponse(res, error.message, 500);
+      return sendResponse(res, 500, error.message, "error");
     }
   }
 
@@ -55,9 +67,15 @@ class CallController {
     try {
       const userId = req.user.id;
       const stats = await CallService.getCallStatistics(userId);
-      return successResponse(res, "Lấy thống kê cuộc gọi thành công", stats);
+      return sendResponse(
+        res,
+        200,
+        "Lấy thống kê cuộc gọi thành công",
+        "success",
+        stats
+      );
     } catch (error) {
-      return errorResponse(res, error.message, 500);
+      return sendResponse(res, 500, error.message, "error");
     }
   }
 }
