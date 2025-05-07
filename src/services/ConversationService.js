@@ -115,7 +115,7 @@ exports.getConversationById = async (conversationId, userId) => {
 
   // Kiểm tra xem người dùng có phải là thành viên của cuộc hội thoại
   const isParticipant = conversation.participants.some(
-    p => p.user_id._id.toString() === userId.toString()
+    (p) => p.user_id._id.toString() === userId.toString()
   );
 
   if (!isParticipant) {
@@ -123,12 +123,14 @@ exports.getConversationById = async (conversationId, userId) => {
   }
 
   // Format lại dữ liệu participants
-  const formattedParticipants = conversation.participants.map(participant => ({
-    user_id: participant.user_id._id,
-    name: participant.user_id.name,
-    primary_avatar: participant.user_id.primary_avatar,
-    _id: participant._id,
-  }));
+  const formattedParticipants = conversation.participants.map(
+    (participant) => ({
+      user_id: participant.user_id._id,
+      name: participant.user_id.name,
+      primary_avatar: participant.user_id.primary_avatar,
+      _id: participant._id,
+    })
+  );
 
   return {
     ...conversation.toObject(),

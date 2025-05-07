@@ -8,31 +8,53 @@ module.exports = function (io, socket, onlineUsers) {
   /**
    * Xử lý sự kiện tạo nhóm mới
    */
-  socket.on("createGroup", async ({ groupData, creatorId }) => {
-    try {
-      const result = await GroupService.createGroup(groupData, creatorId);
+  socket.on(
+    "createGroup",
+    async ({ groupData, creatorId, existingGroupId }) => {
+      try {
+        // Nếu đã có existingGroupId, nhóm đã được tạo qua API, không tạo nhóm mới
+        // mà chỉ thông báo cho các thành viên khác
+        let result;
 
-      // Thông báo cho tất cả thành viên ban đầu về nhóm mới
-      const memberIds = result.group.members.map((member) =>
-        member.user._id ? member.user._id.toString() : member.user.toString()
-      );
-
-      memberIds.forEach((memberId) => {
-        if (onlineUsers.has(memberId)) {
-          // Thông báo về việc tạo nhóm mới
-          io.to(onlineUsers.get(memberId)).emit("newGroupCreated", result);
-
-          // Thông báo về cuộc hội thoại mới được tạo
-          io.to(onlineUsers.get(memberId)).emit("newConversation", {
-            conversation: result.conversation,
-            group: result.group,
-          });
+        if (existingGroupId) {
+          // Lấy thông tin nhóm đã tạo
+          const group = await GroupService.getGroupById(
+            existingGroupId,
+            creatorId
+          );
+          // Lấy thông tin conversation liên kết
+          const conversation = await Conversation.findById(
+            group.conversation_id
+          ).populate("last_message");
+          result = { group, conversation };
+        } else {
+          // Nếu chưa có, tạo nhóm mới (phòng hợp cho trường hợp chỉ dùng socket)
+          result = await GroupService.createGroup(groupData, creatorId);
         }
-      });
-    } catch (error) {
-      socket.emit("error", error.message);
+
+        // Thông báo cho tất cả thành viên ban đầu về nhóm mới
+        const memberIds = result.group.members.map((member) =>
+          member.user._id ? member.user._id.toString() : member.user.toString()
+        );
+
+        memberIds.forEach((memberId) => {
+          // Không gửi cho người tạo vì họ đã có thông tin nhóm
+          if (onlineUsers.has(memberId) && memberId !== creatorId) {
+            // Thông báo về việc tạo nhóm mới
+            io.to(onlineUsers.get(memberId)).emit("newGroupCreated", result);
+
+            // Thông báo về cuộc hội thoại mới được tạo
+            io.to(onlineUsers.get(memberId)).emit("newConversation", {
+              conversation: result.conversation,
+              group: result.group,
+            });
+          }
+        });
+      } catch (error) {
+        socket.emit("error", error.message);
+      }
     }
-  });
+  );
 
   /**
    * Xử lý sự kiện thêm thành viên mới vào nhóm

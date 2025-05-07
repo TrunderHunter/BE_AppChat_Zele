@@ -62,8 +62,11 @@ exports.getConversationById = async (req, res) => {
       return sendResponse(res, 400, "ID cuộc hội thoại là bắt buộc", "error");
     }
 
-    const conversation = await ConversationService.getConversationById(conversationId, userId);
-    
+    const conversation = await ConversationService.getConversationById(
+      conversationId,
+      userId
+    );
+
     if (!conversation) {
       return sendResponse(res, 404, "Không tìm thấy cuộc hội thoại", "error");
     }
