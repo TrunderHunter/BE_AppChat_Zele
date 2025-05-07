@@ -49,3 +49,33 @@ exports.getConversationBetweenUsers = async (req, res) => {
     sendResponse(res, 500, error.message, "error");
   }
 };
+
+/**
+ * Lấy thông tin cuộc hội thoại theo ID
+ */
+exports.getConversationById = async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const userId = req.user._id;
+
+    if (!conversationId) {
+      return sendResponse(res, 400, "ID cuộc hội thoại là bắt buộc", "error");
+    }
+
+    const conversation = await ConversationService.getConversationById(conversationId, userId);
+    
+    if (!conversation) {
+      return sendResponse(res, 404, "Không tìm thấy cuộc hội thoại", "error");
+    }
+
+    return sendResponse(
+      res,
+      200,
+      "Lấy thông tin cuộc hội thoại thành công",
+      "success",
+      conversation
+    );
+  } catch (error) {
+    return sendResponse(res, 500, error.message, "error");
+  }
+};

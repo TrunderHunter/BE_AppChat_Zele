@@ -84,3 +84,54 @@ exports.getConversationBetweenUsers = async (userId1, userId2) => {
     messages: conversation.messages || [],
   };
 };
+
+/**
+ * Lấy thông tin cuộc hội thoại theo ID
+ * @param {String} conversationId - ID của cuộc hội thoại
+ * @param {String} userId - ID của người dùng đang yêu cầu
+ * @returns {Object} Thông tin cuộc hội thoại nếu người dùng có quyền truy cập
+ */
+exports.getConversationById = async (conversationId, userId) => {
+  // Kiểm tra ObjectId hợp lệ
+  if (!mongoose.Types.ObjectId.isValid(conversationId)) {
+    throw new Error("ID cuộc hội thoại không hợp lệ");
+  }
+
+  // Tìm cuộc hội thoại theo ID
+  const conversation = await Conversation.findById(conversationId)
+    .populate("last_message")
+    .populate({
+      path: "participants.user_id",
+      select: "name email phone primary_avatar", // Lấy các trường cần thiết
+    })
+    .populate({
+      path: "group_id",
+      select: "name description avatar members settings", // Nếu là nhóm, lấy thông tin nhóm
+    });
+
+  if (!conversation) {
+    return null;
+  }
+
+  // Kiểm tra xem người dùng có phải là thành viên của cuộc hội thoại
+  const isParticipant = conversation.participants.some(
+    p => p.user_id._id.toString() === userId.toString()
+  );
+
+  if (!isParticipant) {
+    throw new Error("Bạn không có quyền xem cuộc hội thoại này");
+  }
+
+  // Format lại dữ liệu participants
+  const formattedParticipants = conversation.participants.map(participant => ({
+    user_id: participant.user_id._id,
+    name: participant.user_id.name,
+    primary_avatar: participant.user_id.primary_avatar,
+    _id: participant._id,
+  }));
+
+  return {
+    ...conversation.toObject(),
+    participants: formattedParticipants,
+  };
+};

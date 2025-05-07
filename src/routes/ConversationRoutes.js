@@ -34,4 +34,12 @@ router.get(
   ConversationController.getConversationBetweenUsers
 );
 
+// Route để lấy cuộc hội thoại theo ID
+// http://localhost:5000/api/conversation/:conversationId
+router.get(
+  "/:conversationId",
+  authMiddleware,
+  ConversationController.getConversationById
+);
+
 module.exports = router;
