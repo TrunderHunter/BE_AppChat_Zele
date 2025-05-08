@@ -67,18 +67,30 @@ module.exports = function (io, socket, onlineUsers) {
         addedBy
       );
 
+      // Lấy thông tin conversation của nhóm để thêm cho thành viên mới
+      const conversation = await Conversation.findById(
+        updatedGroup.conversation_id
+      ).populate("last_message");
+
       // Thông báo cho tất cả thành viên về thành viên mới
       const memberIds = updatedGroup.members.map((member) =>
         member.user._id ? member.user._id.toString() : member.user.toString()
+      );
+
+      // Tìm thông tin chi tiết của thành viên mới
+      const newMemberDetail = updatedGroup.members.find(
+        (m) =>
+          (m.user._id ? m.user._id.toString() : m.user.toString()) === memberId
       );
 
       memberIds.forEach((id) => {
         if (onlineUsers.has(id)) {
           io.to(onlineUsers.get(id)).emit("memberAddedToGroup", {
             groupId,
-            newMember: memberId,
+            newMember: newMemberDetail,
             addedBy,
             group: updatedGroup,
+            conversation: conversation,
           });
         }
       });
@@ -86,6 +98,13 @@ module.exports = function (io, socket, onlineUsers) {
       // Thông báo riêng cho thành viên mới
       if (onlineUsers.has(memberId)) {
         io.to(onlineUsers.get(memberId)).emit("addedToGroup", {
+          group: updatedGroup,
+          conversation: conversation,
+        });
+
+        // Gửi thêm một thông báo rõ ràng về cuộc trò chuyện mới cho thành viên mới
+        io.to(onlineUsers.get(memberId)).emit("newConversation", {
+          conversation: conversation,
           group: updatedGroup,
         });
       }
