@@ -146,6 +146,7 @@ module.exports = function (io, socket, onlineUsers) {
         if (onlineUsers.has(memberId)) {
           io.to(onlineUsers.get(memberId)).emit("removedFromGroup", {
             groupId,
+            conversationId: updatedGroup.conversation_id,
           });
         }
       } catch (error) {
