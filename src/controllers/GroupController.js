@@ -454,6 +454,43 @@ class GroupController {
       );
     }
   }
+
+  /**
+   * Chuyển quyền sở hữu nhóm
+   * @param {Request} req - Express request object
+   * @param {Response} res - Express response object
+   */
+  static async transferOwnership(req, res) {
+    try {
+      const { groupId, newOwnerId } = req.body;
+      const currentUserId = req.user._id.toString();
+
+      if (!groupId || !newOwnerId) {
+        return sendResponse(res, 400, "Thiếu thông tin cần thiết", "error");
+      }
+
+      const updatedGroup = await GroupService.transferGroupOwnership(
+        groupId,
+        currentUserId,
+        newOwnerId
+      );
+
+      return sendResponse(
+        res,
+        200,
+        "Chuyển quyền sở hữu nhóm thành công",
+        "success",
+        updatedGroup
+      );
+    } catch (error) {
+      return sendResponse(
+        res,
+        error.message.includes("không có quyền") ? 403 : 500,
+        error.message,
+        "error"
+      );
+    }
+  }
 }
 
 module.exports = GroupController;
