@@ -250,7 +250,6 @@ class GroupService {
       select: "name email phone primary_avatar",
     });
   }
-
   /**
    * Thay đổi vai trò của thành viên trong nhóm
    * @param {String} groupId - ID nhóm
@@ -289,6 +288,17 @@ class GroupService {
     );
     if (memberIndex === -1) {
       throw new Error("Thành viên không tồn tại trong nhóm");
+    }
+
+    // Đặc biệt xử lý trường hợp thay đổi admin
+    if (newRole === "admin") {
+      // Hạ cấp admin hiện tại xuống thành member
+      group.members.forEach((member, index) => {
+        if (member.role === "admin" && member.user.toString() !== memberId) {
+          // Chỉ hạ cấp nếu không phải là người vừa được thăng cấp
+          group.members[index].role = "member";
+        }
+      });
     }
 
     group.members[memberIndex].role = newRole;

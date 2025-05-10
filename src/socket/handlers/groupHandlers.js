@@ -207,7 +207,6 @@ module.exports = function (io, socket, onlineUsers) {
       }
     }
   );
-
   /**
    * Xử lý sự kiện thay đổi vai trò thành viên
    */ socket.on(
@@ -225,6 +224,11 @@ module.exports = function (io, socket, onlineUsers) {
           (m) => m.user.toString() === memberId
         );
         const previousRole = memberBefore ? memberBefore.role : "member";
+
+        // Lưu lại vai trò cũ của admin hiện tại (để thông báo thay đổi)
+        const adminBefore = role === "admin" ? 
+          group.members.find(m => m.role === "admin" && m.user.toString() !== memberId) : null;
+        const previousAdminId = adminBefore ? adminBefore.user.toString() : null;
 
         // Thực hiện thay đổi vai trò
         const updatedGroup = await GroupService.changeRoleMember(
@@ -249,6 +253,18 @@ module.exports = function (io, socket, onlineUsers) {
               changedBy,
               group: updatedGroup,
             });
+            
+            // Nếu là trường hợp thay đổi admin, thông báo thêm về việc admin cũ bị hạ cấp
+            if (role === "admin" && previousAdminId && id === previousAdminId) {
+              io.to(onlineUsers.get(id)).emit("memberRoleChanged", {
+                groupId,
+                memberId: previousAdminId,
+                previousRole: "admin",
+                newRole: "member",
+                changedBy,
+                group: updatedGroup,
+              });
+            }
           }
         });
       } catch (error) {
