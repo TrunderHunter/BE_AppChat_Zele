@@ -515,14 +515,27 @@ module.exports = function (io, socket, onlineUsers) {
 
   /**
    * Xử lý sự kiện cập nhật thông tin nhóm
-   */
-  socket.on("updateGroup", async ({ groupId, updateData, userId }) => {
+   */  socket.on("updateGroup", async ({ groupId, updateData, userId, isNotify = false }) => {
     try {
-      const updatedGroup = await GroupService.updateGroup(
-        groupId,
-        updateData,
-        userId
-      );
+      let updatedGroup;
+      
+      if (isNotify) {
+        // Nếu là thông báo sau khi đã cập nhật qua API, chỉ lấy thông tin nhóm để thông báo
+        updatedGroup = await Group.findById(groupId).populate({
+          path: "members.user",
+          select: "name email phone primary_avatar",
+        });
+        if (!updatedGroup) {
+          throw new Error("Nhóm không tồn tại");
+        }
+      } else {
+        // Nếu không, thực hiện cập nhật thông tin nhóm qua socket
+        updatedGroup = await GroupService.updateGroup(
+          groupId,
+          updateData,
+          userId
+        );
+      }
 
       // Lấy thông tin conversation liên kết với nhóm
       const conversation = await Conversation.findById(

@@ -273,6 +273,7 @@ class GroupService {
     const changingUser = group.members.find(
       (m) => m.user.toString() === changedBy
     );
+
     if (!changingUser || changingUser.role !== "admin") {
       throw new Error("Chỉ admin mới có quyền thay đổi vai trò thành viên");
     }
