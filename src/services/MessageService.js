@@ -312,11 +312,11 @@ exports.sendGroupMessage = async (
   if (!sender) {
     throw new Error("Người gửi không hợp lệ");
   }
-
   // Tạo tin nhắn mới
   const message = new Message({
     sender_id: senderId,
     receiver_id: conversationId, // Trong trường hợp nhóm, receiver_id là ID cuộc hội thoại
+    conversation_id: conversationId, // Thêm conversation_id cho tin nhắn nhóm
     message_type,
     content,
     file_id,
@@ -427,5 +427,7 @@ exports.revokeMessage = async (messageId, userId) => {
   // message.content = null; // Xóa nội dung tin nhắn
   await message.save();
 
-  return message;
+  // Làm mới để đảm bảo lấy được dữ liệu đã cập nhật
+  const updatedMessage = await Message.findById(messageId);
+  return updatedMessage;
 };

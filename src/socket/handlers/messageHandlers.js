@@ -95,26 +95,53 @@ module.exports = function (io, socket, onlineUsers) {
       if (!result) {
         socket.emit("error", "You are not allowed to revoke this message");
         return;
-      }
+      }      // Xác định loại tin nhắn (nhóm hoặc cá nhân)
+      const isGroupMessage = result.conversation_id != null;
+      
+      if (isGroupMessage) {
+        // Đây là tin nhắn nhóm
+        console.log("Revoking group message:", messageId, "in conversation:", result.conversation_id);
+        
+        // Lấy thông tin cuộc trò chuyện nhóm
+        const conversation = await Conversation.findById(result.conversation_id)
+          .populate("participants.user_id", "_id");
 
-      // Gửi thông báo real-time đến người nhận và người gửi
-      const receiverId = result.receiver_id.toString();
-      const senderId = result.sender_id.toString();
+        if (conversation) {
+          // Gửi thông báo đến tất cả thành viên trong nhóm
+          conversation.participants.forEach(participant => {
+            const memberId = participant.user_id._id.toString();
+            
+            if (onlineUsers.has(memberId)) {
+              console.log(`Emitting messageRevoked to group member: ${memberId}`);
+              io.to(onlineUsers.get(memberId)).emit("messageRevoked", {
+                messageId,
+                is_revoked: true,
+                isGroupMessage: true,
+                conversationId: result.conversation_id.toString()
+              });
+            }
+          });
+        }
+      } else {
+        // Đây là tin nhắn cá nhân
+        const receiverId = result.receiver_id.toString();
+        const senderId = result.sender_id.toString();
 
-      // Thông báo cho người nhận
-      if (onlineUsers.has(receiverId)) {
-        io.to(onlineUsers.get(receiverId)).emit("messageRevoked", {
-          messageId,
-          is_revoked: true,
-        });
-      }
+        // Thông báo cho người nhận
+        if (onlineUsers.has(receiverId)) {
+          io.to(onlineUsers.get(receiverId)).emit("messageRevoked", {
+            messageId,
+            is_revoked: true,
+          });
+        }
 
-      // Thông báo cho người gửi
-      if (onlineUsers.has(senderId)) {
-        io.to(onlineUsers.get(senderId)).emit("messageRevoked", {
-          messageId,
-          is_revoked: true,
-        });
+        // Thông báo cho người gửi
+        if (onlineUsers.has(senderId)) {
+          io.to(onlineUsers.get(senderId)).emit("messageRevoked", {
+            messageId,
+            is_revoked: true,
+          });
+        }
       }
     } catch (error) {
       console.error("Error revoking message:", error.message);

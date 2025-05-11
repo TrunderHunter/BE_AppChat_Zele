@@ -5,12 +5,15 @@ const MessageSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     required: true,
-  },
-  receiver_id: {
+  },  receiver_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     required: true,
   }, // Can be user or group
+  conversation_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Conversation",
+  }, // ID của cuộc trò chuyện nhóm
   message_type: {
     type: String,
     enum: ["text", "image", "video", "file", "voice"],
