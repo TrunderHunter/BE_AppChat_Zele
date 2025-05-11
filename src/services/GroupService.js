@@ -277,11 +277,6 @@ class GroupService {
       throw new Error("Chỉ admin mới có quyền thay đổi vai trò thành viên");
     }
 
-    // Không thể thay đổi vai trò của người tạo nhóm
-    if (group.creator.toString() === memberId && newRole !== "admin") {
-      throw new Error("Không thể thay đổi vai trò của người tạo nhóm");
-    }
-
     // Cập nhật vai trò cho thành viên
     const memberIndex = group.members.findIndex(
       (m) => m.user.toString() === memberId
