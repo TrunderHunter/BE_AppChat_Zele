@@ -114,43 +114,44 @@ class FriendRequestService {
       status: "pending",
     }).populate("sender", "name email");
   }
-
-  // Lấy danh sách lời mời kết bạn đã gửi
+  // Lấy danh sách lời mời kết bạn đã gửi (chỉ lấy những lời mời đang chờ phản hồi)
   static async getSentFriendRequests(userId) {
-    return await FriendRequest.find({ sender: userId }).populate(
-      "receiver",
-      "name email"
-    );
+    return await FriendRequest.find({
+      sender: userId,
+      status: "pending", // Chỉ lấy lời mời có trạng thái pending
+    }).populate("receiver", "name email");
   }
-  static async cancelFriendRequest(requestId, userId){
+  static async cancelFriendRequest(requestId, userId) {
     try {
       // Find the friend request
       const friendRequest = await FriendRequest.findById(requestId);
-      
+
       if (!friendRequest) {
-        throw new Error('Không tìm thấy lời mời kết bạn');
+        throw new Error("Không tìm thấy lời mời kết bạn");
       }
-      
+
       // Log the IDs for debugging
       console.log(`Service: Request ID: ${requestId}`);
       console.log(`Service: User ID attempting to cancel: ${userId}`);
       console.log(`Service: Sender ID from request: ${friendRequest.sender}`);
-      
+
       // Convert ObjectId to string for comparison
       const senderId = friendRequest.sender.toString();
-      
+
       // Skip permission check if userId matches sender or is not provided
       if (userId && senderId !== userId) {
-        console.log(`Permission error: User ${userId} tried to cancel request ${requestId} sent by ${senderId}`);
-        throw new Error('Bạn không có quyền hủy lời mời kết bạn này');
+        console.log(
+          `Permission error: User ${userId} tried to cancel request ${requestId} sent by ${senderId}`
+        );
+        throw new Error("Bạn không có quyền hủy lời mời kết bạn này");
       }
-      
+
       // Delete the friend request
       await FriendRequest.findByIdAndDelete(requestId);
-      
+
       return { success: true };
     } catch (error) {
-      console.error('Error in cancelFriendRequest service:', error);
+      console.error("Error in cancelFriendRequest service:", error);
       throw error;
     }
   }
