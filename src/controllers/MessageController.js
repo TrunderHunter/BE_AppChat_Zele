@@ -147,3 +147,42 @@ exports.sendGroupMessage = async (req, res) => {
     });
   }
 };
+
+/**
+ * Controller để chuyển tiếp tin nhắn
+ * Cho phép chuyển tiếp tin nhắn đến người dùng khác hoặc nhóm chat
+ */
+exports.forwardMessage = async (req, res) => {
+  try {
+    const senderId = req.user._id; // Extract sender ID from authenticated user
+    const { receiverId, originalMessageId, isGroup = false } = req.body;
+
+    if (!receiverId || !originalMessageId) {
+      return sendResponse(
+        res,
+        400,
+        "ID người nhận và ID tin nhắn gốc là bắt buộc",
+        "error"
+      );
+    }
+
+    const forwardedMessage = await MessageService.forwardMessage(
+      senderId,
+      receiverId,
+      originalMessageId,
+      isGroup
+    );
+
+    sendResponse(
+      res,
+      200,
+      "Tin nhắn đã được chuyển tiếp thành công",
+      "success",
+      forwardedMessage
+    );
+  } catch (error) {
+    sendResponse(res, 500, "Lỗi khi chuyển tiếp tin nhắn", "error", {
+      error: error.message,
+    });
+  }
+};

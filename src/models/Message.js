@@ -5,7 +5,8 @@ const MessageSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     required: true,
-  },  receiver_id: {
+  },
+  receiver_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     required: true,
@@ -49,6 +50,14 @@ const MessageSchema = new mongoose.Schema({
       reaction_type: { type: String, enum: ["like", "love", "laugh", "sad"] },
     },
   ],
+  forwarded_from: {
+    original_message_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Message",
+    },
+    original_sender_id: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    forwarded_at: { type: Date, default: Date.now },
+  },
   replies: [
     {
       reply_to: { type: mongoose.Schema.Types.ObjectId, ref: "Message" },

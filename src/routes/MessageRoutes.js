@@ -26,4 +26,8 @@ router.get(
 // http://localhost:5000/api/message/revoke/:messageId
 router.put("/revoke/:messageId", MessageController.revokeMessage);
 
+// Route để chuyển tiếp tin nhắn
+// http://localhost:5000/api/message/forward
+router.post("/forward", MessageController.forwardMessage);
+
 module.exports = router;

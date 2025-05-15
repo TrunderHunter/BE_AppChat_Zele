@@ -74,7 +74,6 @@ exports.sendMessage = async (
   } else if (!content) {
     content = ""; // Đảm bảo content không phải null hoặc undefined
   }
-
   // Create a new message
   const message = new Message({
     sender_id: senderId,
@@ -84,7 +83,7 @@ exports.sendMessage = async (
     file_id,
     mentions,
     "message_meta.self_destruct_timer": self_destruct_timer,
-    file_meta: fileMeta, // Thêm thông tin file
+    file_meta: messageData.file_meta || fileMeta, // Ưu tiên sử dụng file_meta từ messageData (khi chuyển tiếp)
   });
 
   await message.save();
@@ -311,8 +310,7 @@ exports.sendGroupMessage = async (
   const sender = await User.findById(senderId);
   if (!sender) {
     throw new Error("Người gửi không hợp lệ");
-  }
-  // Tạo tin nhắn mới
+  } // Tạo tin nhắn mới
   const message = new Message({
     sender_id: senderId,
     receiver_id: conversationId, // Trong trường hợp nhóm, receiver_id là ID cuộc hội thoại
@@ -322,7 +320,7 @@ exports.sendGroupMessage = async (
     file_id,
     mentions,
     "message_meta.self_destruct_timer": self_destruct_timer,
-    file_meta: fileMeta,
+    file_meta: messageData.file_meta || fileMeta, // Ưu tiên sử dụng file_meta từ messageData (khi chuyển tiếp)
   });
 
   await message.save();
@@ -430,4 +428,122 @@ exports.revokeMessage = async (messageId, userId) => {
   // Làm mới để đảm bảo lấy được dữ liệu đã cập nhật
   const updatedMessage = await Message.findById(messageId);
   return updatedMessage;
+};
+
+/**
+ * Chuyển tiếp tin nhắn đến người dùng khác hoặc nhóm
+ * @param {string} senderId - ID của người dùng chuyển tiếp tin nhắn
+ * @param {string} receiverId - ID của người nhận hoặc nhóm nhận tin nhắn
+ * @param {string} originalMessageId - ID của tin nhắn gốc cần chuyển tiếp
+ * @param {boolean} isGroup - Flag xác định đây là chuyển tiếp đến nhóm hay không
+ * @param {boolean} skipSocketNotification - Flag để bỏ qua thông báo qua socket (cho phép xử lý socket riêng)
+ * @returns {Object} - Tin nhắn đã chuyển tiếp
+ */
+exports.forwardMessage = async (
+  senderId,
+  receiverId,
+  originalMessageId,
+  isGroup = false,
+  skipSocketNotification = false
+) => {
+  try {
+    // Tìm tin nhắn gốc cần chuyển tiếp
+    const originalMessage = await Message.findById(originalMessageId);
+
+    if (!originalMessage) {
+      throw new Error("Không tìm thấy tin nhắn gốc");
+    }
+
+    // Lấy thông tin từ tin nhắn gốc
+    const { message_type, content, file_meta, mentions } = originalMessage;
+
+    console.log("Original message details:", {
+      message_id: originalMessageId,
+      type: message_type,
+      has_file_meta: !!file_meta,
+      file_url: file_meta?.url,
+    });
+
+    // Chuẩn bị dữ liệu tin nhắn mới được chuyển tiếp
+    const messageData = {
+      message_type,
+      content,
+      mentions,
+    };
+
+    // Nếu tin nhắn gốc có file, copy thông tin file
+    if (file_meta && file_meta.url) {
+      messageData.file_meta = file_meta;
+      // Log chi tiết để debug
+      console.log("Forwarding message with file:", {
+        url: file_meta.url,
+        file_type: file_meta.file_type,
+        file_name: file_meta.file_name,
+        file_size: file_meta.file_size,
+      });
+    }
+    // Tạo tin nhắn mới dựa trên loại (cá nhân hoặc nhóm)
+    let forwardedMessage;
+
+    if (isGroup) {
+      // Chuyển tiếp tới nhóm
+      // Cần tìm conversation_id từ group_id
+      const group = await Group.findById(receiverId);
+      if (!group) {
+        throw new Error("Nhóm không tồn tại");
+      }
+
+      if (!group.conversation_id) {
+        throw new Error("Cuộc trò chuyện của nhóm không tồn tại");
+      }
+
+      // Sử dụng conversation_id của nhóm
+      forwardedMessage = await this.sendGroupMessage(
+        senderId,
+        group.conversation_id.toString(), // Sử dụng conversation_id thay vì group_id
+        messageData,
+        null, // không có file mới, sử dụng file_meta từ tin nhắn gốc
+        skipSocketNotification
+      );
+    } else {
+      // Chuyển tiếp tới cá nhân
+      forwardedMessage = await this.sendMessage(
+        senderId,
+        receiverId,
+        messageData,
+        null, // không có file mới, sử dụng file_meta từ tin nhắn gốc
+        skipSocketNotification
+      );
+    }
+    // Cập nhật thông tin về tin nhắn gốc
+    if (forwardedMessage) {
+      forwardedMessage.forwarded_from = {
+        original_message_id: originalMessage._id,
+        original_sender_id: originalMessage.sender_id,
+        forwarded_at: Date.now(),
+      };
+
+      // Đảm bảo file_meta được sao chép nếu chưa có
+      if (originalMessage.file_meta && !forwardedMessage.file_meta) {
+        forwardedMessage.file_meta = originalMessage.file_meta;
+        console.log("Added missing file_meta to forwarded message");
+      }
+
+      await forwardedMessage.save();
+
+      // Log tin nhắn đã chuyển tiếp để debug
+      console.log("Forwarded message details after save:", {
+        message_id: forwardedMessage._id,
+        type: forwardedMessage.message_type,
+        has_file_meta: !!forwardedMessage.file_meta,
+        file_url: forwardedMessage.file_meta?.url,
+      });
+    }
+
+    // Trả về tin nhắn đã chuyển tiếp
+    return forwardedMessage;
+  } catch (error) {
+    console.error("Lỗi khi chuyển tiếp tin nhắn:", error);
+    throw error;
+  }
 };
