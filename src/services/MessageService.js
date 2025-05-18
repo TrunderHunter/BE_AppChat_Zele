@@ -383,8 +383,12 @@ exports.sendGroupMessage = async (
   return message;
 };
 
-// Lấy tất cả tin nhắn trong một cuộc hội thoại
-exports.getMessagesByConversationId = async (conversationId) => {
+// Lấy tin nhắn trong một cuộc hội thoại (có hỗ trợ phân trang)
+exports.getMessagesByConversationId = async (
+  conversationId,
+  limit = 10,
+  before_id = null
+) => {
   // Kiểm tra ObjectId hợp lệ
   if (!mongoose.Types.ObjectId.isValid(conversationId)) {
     throw new Error("Invalid conversation ID");
@@ -396,12 +400,41 @@ exports.getMessagesByConversationId = async (conversationId) => {
     throw new Error("Conversation not found");
   }
 
-  // Lấy tất cả các tin nhắn thuộc về cuộc hội thoại
-  const messages = await Message.find({
-    _id: { $in: conversation.messages.map((msg) => msg.message_id) },
-  })
+  // Lấy tất cả các message_id từ conversation
+  const messageIds = conversation.messages.map((msg) => msg.message_id);
+
+  // Nếu không có tin nhắn
+  if (!messageIds || messageIds.length === 0) {
+    return [];
+  }
+
+  // Xây dựng query
+  let query = {
+    _id: { $in: messageIds },
+  };
+
+  // Thêm điều kiện phân trang nếu có before_id
+  if (before_id && mongoose.Types.ObjectId.isValid(before_id)) {
+    query = {
+      ...query,
+      _id: {
+        $in: messageIds,
+        $lt: before_id, // Lấy tin nhắn có _id nhỏ hơn before_id (tin nhắn cũ hơn)
+      },
+    };
+  }
+  // Lấy tin nhắn với giới hạn (nếu có) và sắp xếp theo thời gian giảm dần (tin nhắn mới nhất trước)
+  let messagesQuery = Message.find(query)
+    .sort({ timestamp: -1 })
     .populate("sender_id", "_id name email phone primary_avatar")
     .populate("receiver_id", "_id name email phone primary_avatar");
+
+  // Chỉ áp dụng limit khi được cung cấp (nếu limit là null, lấy toàn bộ tin nhắn)
+  if (limit !== null) {
+    messagesQuery = messagesQuery.limit(limit);
+  }
+
+  const messages = await messagesQuery;
 
   return messages;
 };

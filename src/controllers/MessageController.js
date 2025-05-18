@@ -53,9 +53,16 @@ exports.sendMessage = async (req, res) => {
 exports.getMessagesByConversationId = async (req, res) => {
   try {
     const { conversationId } = req.params;
+    // Lấy tham số phân trang từ query string
+    const { limit, before_id } = req.query;
+
+    // Nếu không có tham số limit, gửi toàn bộ tin nhắn (truyền null để bỏ qua giới hạn)
+    const limitValue = limit ? parseInt(limit) : null;
 
     const messages = await MessageService.getMessagesByConversationId(
-      conversationId
+      conversationId,
+      limitValue,
+      before_id
     );
 
     // Changed this condition to return empty array instead of error

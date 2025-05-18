@@ -16,8 +16,8 @@ router.post(
   MessageController.sendGroupMessage
 );
 
-// Route để lấy tất cả các tin nhắn của một cuộc hội thoại
-// http://localhost:5000/api/message/getByConversation/:conversationId
+// Route để lấy các tin nhắn của một cuộc hội thoại với phân trang
+// http://localhost:5000/api/message/getByConversation/:conversationId?limit=10&before_id=123
 router.get(
   "/getByConversation/:conversationId",
   MessageController.getMessagesByConversationId
