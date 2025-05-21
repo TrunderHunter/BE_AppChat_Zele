@@ -10,6 +10,7 @@ const messageRoutes = require("../src/routes/MessageRoutes");
 const conversationRoutes = require("./routes/ConversationRoutes");
 const friendRequestRoutes = require("./routes/FriendRequestRoutes");
 const groupRoutes = require("./routes/GroupRoutes");
+const stringeeRoutes = require("./routes/StringeeRoutes");
 const callRoutes = require("./routes/CallRoutes"); // Thêm routes cho cuộc gọi
 const cors = require("cors");
 const http = require("http");
@@ -69,6 +70,7 @@ app.use("/api/friend-request", friendRequestRoutes);
 app.use("/api/group", groupRoutes);
 app.use("/api/call", callRoutes); // Thêm routes cho cuộc gọi
 
+app.use("/api/stringee", stringeeRoutes);
 server.listen(process.env.PORT, () => {
   console.log(`Server running on port ${process.env.PORT}`);
 });
