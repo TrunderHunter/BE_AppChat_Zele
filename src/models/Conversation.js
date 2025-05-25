@@ -1,7 +1,6 @@
 const mongoose = require("mongoose");
 
 const ConversationSchema = new mongoose.Schema({
-  // ID, tên hình ảnh của người tham gia cuộc trò chuyện
   participants: [
     {
       user_id: { type: mongoose.Schema.Types.ObjectId, ref: "User" },

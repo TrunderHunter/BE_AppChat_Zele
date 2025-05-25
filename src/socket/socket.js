@@ -5,6 +5,7 @@ const messageHandlers = require("./handlers/messageHandlers");
 const friendRequestHandlers = require("./handlers/friendRequestHandlers");
 const groupHandlers = require("./handlers/groupHandlers");
 const connectionHandlers = require("./handlers/connectionHandlers");
+const callHandlers = require("./handlers/callHandlers"); // Thêm import callHandlers
 let io;
 const onlineUsers = new Map(); // Map để ánh xạ userId với socketId
 
@@ -15,8 +16,10 @@ const onlineUsers = new Map(); // Map để ánh xạ userId với socketId
 const initializeSocket = (server) => {
   io = new Server(server, {
     cors: {
-      origin: "*", // Cho phép tất cả các domain (có thể giới hạn domain cụ thể)
+      origin: process.env.CLIENT_URL || "*",
       methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      credentials: true, // Cho phép credentials (cookies, authorization headers)
+      allowedHeaders: ["Content-Type", "Authorization"],
     },
   });
 
@@ -28,6 +31,7 @@ const initializeSocket = (server) => {
     messageHandlers(io, socket, onlineUsers);
     friendRequestHandlers(io, socket, onlineUsers);
     groupHandlers(io, socket, onlineUsers);
+    callHandlers(io, socket, onlineUsers); // Thêm callHandlers
   });
 };
 

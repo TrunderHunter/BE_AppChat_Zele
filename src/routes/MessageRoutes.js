@@ -16,8 +16,8 @@ router.post(
   MessageController.sendGroupMessage
 );
 
-// Route để lấy tất cả các tin nhắn của một cuộc hội thoại
-// http://localhost:5000/api/message/getByConversation/:conversationId
+// Route để lấy các tin nhắn của một cuộc hội thoại với phân trang
+// http://localhost:5000/api/message/getByConversation/:conversationId?limit=10&before_id=123
 router.get(
   "/getByConversation/:conversationId",
   MessageController.getMessagesByConversationId
@@ -25,5 +25,9 @@ router.get(
 
 // http://localhost:5000/api/message/revoke/:messageId
 router.put("/revoke/:messageId", MessageController.revokeMessage);
+
+// Route để chuyển tiếp tin nhắn
+// http://localhost:5000/api/message/forward
+router.post("/forward", MessageController.forwardMessage);
 
 module.exports = router;

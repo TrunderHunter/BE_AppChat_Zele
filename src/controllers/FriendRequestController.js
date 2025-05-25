@@ -63,44 +63,49 @@ exports.getFriendRequests = async (req, res) => {
 exports.cancelFriendRequest = async (req, res) => {
   try {
     const { requestId } = req.params;
-    const userId = req.user ? req.user.id : null;
-    
+    const userId = req.user ? req.user._id : null;
+
     console.log(`Controller: Canceling request ${requestId} by user ${userId}`);
 
     if (!requestId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'ID của lời mời kết bạn không được cung cấp' 
-      });
+      return sendResponse(
+        res,
+        400,
+        "ID của lời mời kết bạn không được cung cấp",
+        "error"
+      );
     }
 
     // Pass the user ID to the service
-    const result = await FriendRequestService.cancelFriendRequest(requestId, userId);
-    
-    return res.status(200).json({
-      success: true,
-      message: 'Đã hủy lời mời kết bạn thành công',
-      data: result
-    });
+    const result = await FriendRequestService.cancelFriendRequest(
+      requestId,
+      userId
+    );
+
+    return sendResponse(
+      res,
+      200,
+      "Đã hủy lời mời kết bạn thành công",
+      "success",
+      result
+    );
   } catch (error) {
-    console.error('Error canceling friend request:', error);
-    
+    console.error("Error canceling friend request:", error);
+
     // Check if this is a permission error
-    if (error.message && error.message.includes('không có quyền')) {
-      return res.status(403).json({
-        success: false,
-        message: error.message
-      });
+    if (error.message && error.message.includes("không có quyền")) {
+      return sendResponse(res, 403, error.message, "error");
     }
-    
+
     // For other errors
-    return res.status(500).json({
-      success: false,
-      message: error.message || 'Đã xảy ra lỗi khi hủy lời mời kết bạn'
-    });
+    return sendResponse(
+      res,
+      500,
+      error.message || "Đã xảy ra lỗi khi hủy lời mời kết bạn",
+      "error"
+    );
   }
 };
-
 
 exports.getSentFriendRequests = async (req, res) => {
   try {

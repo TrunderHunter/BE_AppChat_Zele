@@ -45,9 +45,7 @@ module.exports = function (io, socket, onlineUsers) {
         : updatedRequest.sender.toString();
       const receiverId = updatedRequest.receiver._id
         ? updatedRequest.receiver._id.toString()
-        : updatedRequest.receiver.toString();
-
-      // Nếu lời mời được chấp nhận
+        : updatedRequest.receiver.toString(); // Nếu lời mời được chấp nhận
       if (status === "accepted") {
         // Thông báo cho cả người gửi và người nhận về tình trạng bạn bè mới
         [senderId, receiverId].forEach(async (userId) => {
@@ -108,14 +106,14 @@ module.exports = function (io, socket, onlineUsers) {
       socket.emit("error", error.message);
     }
   });
-
   /**
    * Xử lý sự kiện lấy danh sách lời mời đã nhận
    */
   socket.on("getReceivedFriendRequests", async ({ userId }) => {
     try {
-      const receivedRequests =
-        await FriendRequestService.getReceivedFriendRequests(userId);
+      const receivedRequests = await FriendRequestService.getFriendRequests(
+        userId
+      );
       socket.emit("receivedFriendRequests", receivedRequests);
     } catch (error) {
       socket.emit("error", error.message);
@@ -151,9 +149,7 @@ module.exports = function (io, socket, onlineUsers) {
         console.error("Friend request not found:", requestId);
         socket.emit("error", { message: "Friend request not found" });
         return;
-      }
-
-      // Store receiver info for notification
+      } // Store receiver info for notification
       const receiverId = friendRequest.receiver.toString();
 
       // Use the service to cancel the request
@@ -168,6 +164,15 @@ module.exports = function (io, socket, onlineUsers) {
         success: true,
         requestId,
       });
+
+      // Thông báo cho người nhận lời mời biết lời mời đã bị hủy
+      if (onlineUsers.has(receiverId)) {
+        io.to(onlineUsers.get(receiverId)).emit("friendRequestCancelled", {
+          success: true,
+          requestId,
+          senderId: friendRequest.sender.toString(),
+        });
+      }
     } catch (error) {
       console.error("Error handling cancelFriendRequest event:", error);
       socket.emit("error", { message: error.message });

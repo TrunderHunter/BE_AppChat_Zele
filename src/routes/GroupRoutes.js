@@ -56,4 +56,7 @@ router.post(
 // GET /api/group/join/:inviteCode - Tham gia nhóm bằng link mời
 router.get("/join/:inviteCode", GroupController.joinGroupWithInviteLink);
 
+// POST /api/group/transfer-ownership - Chuyển quyền sở hữu nhóm
+router.post("/transfer-ownership", GroupController.transferOwnership);
+
 module.exports = router;

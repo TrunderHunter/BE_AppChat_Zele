@@ -10,9 +10,12 @@ const messageRoutes = require("../src/routes/MessageRoutes");
 const conversationRoutes = require("./routes/ConversationRoutes");
 const friendRequestRoutes = require("./routes/FriendRequestRoutes");
 const groupRoutes = require("./routes/GroupRoutes");
+const stringeeRoutes = require("./routes/StringeeRoutes");
+const callRoutes = require("./routes/CallRoutes"); // Thêm routes cho cuộc gọi
 const cors = require("cors");
 const http = require("http");
 const { initializeSocket } = require("./socket/socket"); // Import socket.js
+const { initializePeerServer } = require("./config/peerServer"); // Import cấu hình PeerJS Server
 
 dotenv.config();
 connectDB();
@@ -20,7 +23,9 @@ connectDB();
 const app = express();
 const server = http.createServer(app); // Tạo HTTP server
 
-initializeSocket(server); // Khởi tạo Socket.IO
+// Khởi tạo Socket.IO và PeerJS Server
+initializeSocket(server);
+initializePeerServer();
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -63,7 +68,9 @@ app.use("/api/user", userRoutes);
 app.use("/api/message", messageRoutes);
 app.use("/api/friend-request", friendRequestRoutes);
 app.use("/api/group", groupRoutes);
+app.use("/api/call", callRoutes); // Thêm routes cho cuộc gọi
 
+app.use("/api/stringee", stringeeRoutes);
 server.listen(process.env.PORT, () => {
   console.log(`Server running on port ${process.env.PORT}`);
 });

@@ -53,9 +53,16 @@ exports.sendMessage = async (req, res) => {
 exports.getMessagesByConversationId = async (req, res) => {
   try {
     const { conversationId } = req.params;
+    // Lấy tham số phân trang từ query string
+    const { limit, before_id } = req.query;
+
+    // Nếu không có tham số limit, gửi toàn bộ tin nhắn (truyền null để bỏ qua giới hạn)
+    const limitValue = limit ? parseInt(limit) : null;
 
     const messages = await MessageService.getMessagesByConversationId(
-      conversationId
+      conversationId,
+      limitValue,
+      before_id
     );
 
     // Changed this condition to return empty array instead of error
@@ -143,6 +150,45 @@ exports.sendGroupMessage = async (req, res) => {
       return sendResponse(res, 400, error.message, "error");
     }
     sendResponse(res, 500, "Error sending group message", "error", {
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Controller để chuyển tiếp tin nhắn
+ * Cho phép chuyển tiếp tin nhắn đến người dùng khác hoặc nhóm chat
+ */
+exports.forwardMessage = async (req, res) => {
+  try {
+    const senderId = req.user._id; // Extract sender ID from authenticated user
+    const { receiverId, originalMessageId, isGroup = false } = req.body;
+
+    if (!receiverId || !originalMessageId) {
+      return sendResponse(
+        res,
+        400,
+        "ID người nhận và ID tin nhắn gốc là bắt buộc",
+        "error"
+      );
+    }
+
+    const forwardedMessage = await MessageService.forwardMessage(
+      senderId,
+      receiverId,
+      originalMessageId,
+      isGroup
+    );
+
+    sendResponse(
+      res,
+      200,
+      "Tin nhắn đã được chuyển tiếp thành công",
+      "success",
+      forwardedMessage
+    );
+  } catch (error) {
+    sendResponse(res, 500, "Lỗi khi chuyển tiếp tin nhắn", "error", {
       error: error.message,
     });
   }

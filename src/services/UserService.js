@@ -15,7 +15,7 @@ exports.updateUserById = async (userId, updateData) => {
   }
 
   // Update fields
-  const allowedFields = ["name", "dob", "phone"];
+  const allowedFields = ["name", "dob", "phone", "gender"];
   Object.keys(updateData).forEach((key) => {
     if (allowedFields.includes(key)) {
       if (key === "dob") {

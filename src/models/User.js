@@ -21,6 +21,12 @@ const UserSchema = new mongoose.Schema({
   },
   name: { type: String, required: [true, "Vui lòng nhập tên"] },
   dob: Date,
+  gender: {
+    type: String,
+    enum: ["Nam", "Nữ", "Khác"],
+    default: "Khác",
+  },
+  address: String,
   password_hash: {
     type: String,
     required: [true, "Vui lòng nhập mật khẩu"],

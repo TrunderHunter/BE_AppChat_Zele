@@ -192,11 +192,9 @@ class GroupService {
     );
     if (!memberToRemove) {
       throw new Error("Thành viên không tồn tại trong nhóm");
-    }
-
-    // Kiểm tra quyền hạn
+    } // Kiểm tra quyền hạn
     // Admin có thể xóa bất kỳ ai trừ người tạo nhóm
-    // Moderator có thể xóa member
+    // Moderator có thể xóa member thường
     // User có thể tự xóa mình (rời nhóm)
     const removingUser = group.members.find(
       (m) => m.user.toString() === removedBy
@@ -207,13 +205,30 @@ class GroupService {
 
     if (removedBy === memberId) {
       // Người dùng tự rời nhóm
+
+      // Kiểm tra nếu người rời nhóm là admin và còn admin khác trong nhóm thì được rời đi
+      // Nếu họ là admin duy nhất, không cho phép rời đi trừ khi là nhóm 1 người
+      if (memberToRemove.role === "admin") {
+        // Đếm số admin trong nhóm
+        const adminCount = group.members.filter(
+          (m) => m.role === "admin"
+        ).length;
+
+        // Nếu chỉ còn 1 admin (chính người muốn rời nhóm) và nhóm có nhiều hơn 1 thành viên
+        if (adminCount === 1 && group.members.length > 1) {
+          throw new Error(
+            "Bạn phải chuyển quyền quản trị viên trước khi rời nhóm"
+          );
+        }
+      }
     } else if (removingUser.role === "admin") {
-      // Admin có thể xóa bất kỳ ai trừ người tạo
-    } else if (
-      removingUser.role === "moderator" &&
-      memberToRemove.role === "member"
-    ) {
-      // Moderator chỉ có thể xóa member
+      // Admin có thể xóa bất kỳ ai trừ người tạo nhóm
+      // Không cần thêm validation
+    } else if (removingUser.role === "moderator") {
+      // Moderator chỉ có thể xóa member thường
+      if (memberToRemove.role !== "member") {
+        throw new Error("Điều hành viên chỉ có thể xóa thành viên thường");
+      }
     } else {
       throw new Error("Bạn không có quyền xóa thành viên này");
     }
@@ -235,7 +250,6 @@ class GroupService {
       select: "name email phone primary_avatar",
     });
   }
-
   /**
    * Thay đổi vai trò của thành viên trong nhóm
    * @param {String} groupId - ID nhóm
@@ -259,13 +273,9 @@ class GroupService {
     const changingUser = group.members.find(
       (m) => m.user.toString() === changedBy
     );
+
     if (!changingUser || changingUser.role !== "admin") {
       throw new Error("Chỉ admin mới có quyền thay đổi vai trò thành viên");
-    }
-
-    // Không thể thay đổi vai trò của người tạo nhóm
-    if (group.creator.toString() === memberId && newRole !== "admin") {
-      throw new Error("Không thể thay đổi vai trò của người tạo nhóm");
     }
 
     // Cập nhật vai trò cho thành viên
@@ -274,6 +284,17 @@ class GroupService {
     );
     if (memberIndex === -1) {
       throw new Error("Thành viên không tồn tại trong nhóm");
+    }
+
+    // Đặc biệt xử lý trường hợp thay đổi admin
+    if (newRole === "admin") {
+      // Hạ cấp admin hiện tại xuống thành member
+      group.members.forEach((member, index) => {
+        if (member.role === "admin" && member.user.toString() !== memberId) {
+          // Chỉ hạ cấp nếu không phải là người vừa được thăng cấp
+          group.members[index].role = "member";
+        }
+      });
     }
 
     group.members[memberIndex].role = newRole;
@@ -610,6 +631,54 @@ class GroupService {
     } finally {
       session.endSession();
     }
+  }
+
+  /**
+   * Chuyển quyền sở hữu nhóm từ người tạo nhóm hiện tại sang thành viên khác
+   * @param {String} groupId - ID của nhóm
+   * @param {String} currentCreatorId - ID của người tạo nhóm hiện tại
+   * @param {String} newCreatorId - ID của người sẽ trở thành người tạo nhóm mới
+   * @returns {Promise<Object>} - Thông tin nhóm sau khi cập nhật
+   */
+  static async transferGroupOwnership(groupId, currentCreatorId, newCreatorId) {
+    // Kiểm tra nhóm tồn tại
+    const group = await Group.findById(groupId);
+    if (!group) {
+      throw new Error("Nhóm không tồn tại");
+    }
+
+    // Xác thực người chuyển quyền là creator hiện tại
+    if (group.creator.toString() !== currentCreatorId) {
+      throw new Error("Chỉ người tạo nhóm mới có quyền chuyển quyền sở hữu");
+    }
+
+    // Kiểm tra người nhận quyền là thành viên của nhóm
+    const newCreatorMember = group.members.find(
+      (m) => m.user.toString() === newCreatorId
+    );
+    if (!newCreatorMember) {
+      throw new Error("Người nhận quyền phải là thành viên của nhóm");
+    }
+
+    // Chuyển quyền sở hữu
+    group.creator = newCreatorId;
+
+    // Đảm bảo người nhận quyền có vai trò admin
+    newCreatorMember.role = "admin";
+
+    // Lưu thay đổi
+    await group.save();
+
+    // Trả về nhóm đã cập nhật
+    return await Group.findById(groupId)
+      .populate({
+        path: "members.user",
+        select: "name email phone primary_avatar status",
+      })
+      .populate({
+        path: "creator",
+        select: "name email phone primary_avatar",
+      });
   }
 }
 

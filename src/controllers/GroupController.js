@@ -40,9 +40,9 @@ class GroupController {
         creatorId
       );
 
-      sendResponse(res, 201, "Tạo nhóm thành công", "success", result);
+      return sendResponse(res, 201, "Tạo nhóm thành công", "success", result);
     } catch (error) {
-      sendResponse(res, 500, error.message, "error");
+      return sendResponse(res, 500, error.message, "error");
     }
   }
 
@@ -69,9 +69,15 @@ class GroupController {
         addedBy
       );
 
-      sendResponse(res, 200, "Thêm thành viên thành công", "success", result);
+      return sendResponse(
+        res,
+        200,
+        "Thêm thành viên thành công",
+        "success",
+        result
+      );
     } catch (error) {
-      sendResponse(
+      return sendResponse(
         res,
         error.message.includes("không có quyền") ? 403 : 500,
         error.message,
@@ -105,19 +111,24 @@ class GroupController {
 
       // Nếu memberID bị xóa là romveBy thì thông báo người dùng này đã rời khỏi nhóm
       if (removedBy.toString() === memberId.toString()) {
-        sendResponse(
+        return sendResponse(
           res,
-
           200,
           "Bạn đã rời khỏi nhóm",
           "success",
           result
         );
       } else {
-        sendResponse(res, 200, "Xóa thành viên thành công", "success", result);
+        return sendResponse(
+          res,
+          200,
+          "Xóa thành viên thành công",
+          "success",
+          result
+        );
       }
     } catch (error) {
-      sendResponse(
+      return sendResponse(
         res,
         error.message.includes("không có quyền") ? 403 : 500,
         error.message,
@@ -150,9 +161,15 @@ class GroupController {
         changedBy
       );
 
-      sendResponse(res, 200, "Thay đổi vai trò thành công", "success", result);
+      return sendResponse(
+        res,
+        200,
+        "Thay đổi vai trò thành công",
+        "success",
+        result
+      );
     } catch (error) {
-      sendResponse(
+      return sendResponse(
         res,
         error.message.includes("không có quyền") ? 403 : 500,
         error.message,
@@ -201,9 +218,15 @@ class GroupController {
         userId
       );
 
-      sendResponse(res, 200, "Cập nhật nhóm thành công", "success", result);
+      return sendResponse(
+        res,
+        200,
+        "Cập nhật nhóm thành công",
+        "success",
+        result
+      );
     } catch (error) {
-      sendResponse(
+      return sendResponse(
         res,
         error.message.includes("không có quyền") ? 403 : 500,
         error.message,
@@ -226,9 +249,15 @@ class GroupController {
 
       const group = await GroupService.getGroupById(groupId, userId);
 
-      sendResponse(res, 200, "Lấy thông tin nhóm thành công", "success", group);
+      return sendResponse(
+        res,
+        200,
+        "Lấy thông tin nhóm thành công",
+        "success",
+        group
+      );
     } catch (error) {
-      sendResponse(
+      return sendResponse(
         res,
         error.message.includes("không có quyền") ? 403 : 404,
         error.message,
@@ -246,7 +275,7 @@ class GroupController {
 
       const groups = await GroupService.getGroupsByUserId(userId);
 
-      sendResponse(
+      return sendResponse(
         res,
         200,
         "Lấy danh sách nhóm thành công",
@@ -254,7 +283,7 @@ class GroupController {
         groups
       );
     } catch (error) {
-      sendResponse(res, 500, error.message, "error");
+      return sendResponse(res, 500, error.message, "error");
     }
   }
 
@@ -416,6 +445,43 @@ class GroupController {
       }
 
       return sendResponse(res, 200, "Xóa nhóm thành công", "success", result);
+    } catch (error) {
+      return sendResponse(
+        res,
+        error.message.includes("không có quyền") ? 403 : 500,
+        error.message,
+        "error"
+      );
+    }
+  }
+
+  /**
+   * Chuyển quyền sở hữu nhóm
+   * @param {Request} req - Express request object
+   * @param {Response} res - Express response object
+   */
+  static async transferOwnership(req, res) {
+    try {
+      const { groupId, newOwnerId } = req.body;
+      const currentUserId = req.user._id.toString();
+
+      if (!groupId || !newOwnerId) {
+        return sendResponse(res, 400, "Thiếu thông tin cần thiết", "error");
+      }
+
+      const updatedGroup = await GroupService.transferGroupOwnership(
+        groupId,
+        currentUserId,
+        newOwnerId
+      );
+
+      return sendResponse(
+        res,
+        200,
+        "Chuyển quyền sở hữu nhóm thành công",
+        "success",
+        updatedGroup
+      );
     } catch (error) {
       return sendResponse(
         res,

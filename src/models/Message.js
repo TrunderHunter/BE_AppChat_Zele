@@ -11,6 +11,10 @@ const MessageSchema = new mongoose.Schema({
     ref: "User",
     required: true,
   }, // Can be user or group
+  conversation_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Conversation",
+  }, // ID của cuộc trò chuyện nhóm
   message_type: {
     type: String,
     enum: ["text", "image", "video", "file", "voice"],
@@ -18,6 +22,12 @@ const MessageSchema = new mongoose.Schema({
   },
   content: { type: String },
   file_id: { type: mongoose.Schema.Types.ObjectId, ref: "File" },
+  file_meta: {
+    url: { type: String },
+    file_type: { type: String },
+    file_name: { type: String },
+    file_size: { type: Number },
+  },
   timestamp: { type: Date, default: Date.now },
   status: {
     type: String,
@@ -40,6 +50,14 @@ const MessageSchema = new mongoose.Schema({
       reaction_type: { type: String, enum: ["like", "love", "laugh", "sad"] },
     },
   ],
+  forwarded_from: {
+    original_message_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Message",
+    },
+    original_sender_id: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    forwarded_at: { type: Date, default: Date.now },
+  },
   replies: [
     {
       reply_to: { type: mongoose.Schema.Types.ObjectId, ref: "Message" },
