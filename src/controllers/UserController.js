@@ -211,6 +211,18 @@ const checkEmailExists = async (req, res) => {
   return sendResponse(res, 200, "Email hợp lệ", "success", { exists: false });
 };
 
+const checkPhoneExists = async (req, res) => {
+  const { phone } = req.query;
+  if (!phone) {
+    return sendResponse(res, 400, "Thiếu phone", "error");
+  }
+  const user = await UserRepository.findUserByEmailOrPhone(null, phone);
+  if (user) {
+    return sendResponse(res, 200, "Phone đã tồn tại", "error", { exists: true });
+  }
+  return sendResponse(res, 200, "Phone hợp lệ", "success", { exists: false });
+};
+
 module.exports = {
   updateUser: exports.updateUser,
   addOrUpdateAvatar: exports.addOrUpdateAvatar,
@@ -220,4 +232,5 @@ module.exports = {
   getUserFriends: exports.getUserFriends,
   uploadAvatar: exports.uploadAvatar,
   checkEmailExists,
+  checkPhoneExists,
 };
