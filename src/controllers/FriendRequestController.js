@@ -125,3 +125,41 @@ exports.getSentFriendRequests = async (req, res) => {
     sendResponse(res, 400, error.message, "error");
   }
 };
+
+// Add this function to your existing FriendRequestController
+
+/**
+ * Kiểm tra trạng thái kết bạn giữa hai người dùng
+ * @param {Object} req - Request object
+ * @param {Object} res - Response object
+ * @returns {Object} Trạng thái kết bạn: 'none', 'pending', 'requested', 'friends'
+ */
+exports.checkFriendshipStatus = async (req, res) => {
+  try {
+    const currentUserId = req.user._id;
+    const targetUserId = req.params.userId;
+    
+    if (!targetUserId) {
+      return res.status(400).json({
+        status: "error",
+        message: "User ID is required",
+        data: null
+      });
+    }
+    
+    const status = await FriendRequestService.checkFriendshipStatus(currentUserId, targetUserId);
+    
+    return res.status(200).json({
+      status: "success",
+      message: "Friendship status retrieved successfully",
+      data: status
+    });
+  } catch (error) {
+    console.error("Error checking friendship status:", error);
+    return res.status(500).json({
+      status: "error",
+      message: error.message,
+      data: null
+    });
+  }
+};

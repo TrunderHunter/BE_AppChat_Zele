@@ -121,6 +121,62 @@ class FriendRequestService {
       status: "pending", // Chỉ lấy lời mời có trạng thái pending
     }).populate("receiver", "name email");
   }
+  // Add this function to your existing FriendRequestService
+
+/**
+ * Kiểm tra trạng thái kết bạn giữa hai người dùng
+ * @param {String} currentUserId - ID của người dùng hiện tại
+ * @param {String} targetUserId - ID của người dùng cần kiểm tra
+ * @returns {Object} Trạng thái kết bạn và chi tiết
+ */
+static async checkFriendshipStatus(currentUserId, targetUserId) {
+  // Kiểm tra xem đã là bạn bè chưa
+  const user = await User.findById(currentUserId);
+  const isFriend = user.friends.includes(targetUserId);
+  
+  if (isFriend) {
+    return {
+      status: "friends",
+      message: "Hai người dùng đã là bạn bè"
+    };
+  }
+  
+  // Kiểm tra xem có lời mời kết bạn đang chờ không
+  const pendingRequest = await FriendRequest.findOne({
+    sender: currentUserId,
+    receiver: targetUserId,
+    status: "pending"
+  });
+  
+  if (pendingRequest) {
+    return {
+      status: "pending",
+      message: "Đã gửi lời mời kết bạn, đang chờ phản hồi",
+      requestId: pendingRequest._id
+    };
+  }
+  
+  // Kiểm tra xem có lời mời kết bạn từ người kia không
+  const receivedRequest = await FriendRequest.findOne({
+    sender: targetUserId,
+    receiver: currentUserId,
+    status: "pending"
+  });
+  
+  if (receivedRequest) {
+    return {
+      status: "requested",
+      message: "Đã nhận được lời mời kết bạn từ người dùng này",
+      requestId: receivedRequest._id
+    };
+  }
+  
+  // Không có mối quan hệ nào
+  return {
+    status: "none",
+    message: "Chưa có mối quan hệ kết bạn"
+  };
+}
   static async cancelFriendRequest(requestId, userId) {
     try {
       // Find the friend request
