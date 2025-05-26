@@ -1,6 +1,7 @@
 const UserService = require("../services/UserService");
 const sendResponse = require("../utils/response");
 const S3Uploader = require("../utils/S3Uploader");
+const UserRepository = require("../repositories/userRepository");
 
 exports.updateUser = async (req, res) => {
   try {
@@ -196,4 +197,40 @@ exports.uploadAvatar = async (req, res) => {
     console.error("Lỗi khi tải lên avatar:", error);
     sendResponse(res, 500, `Lỗi khi tải lên avatar: ${error.message}`, "error");
   }
+};
+
+const checkEmailExists = async (req, res) => {
+  const { email } = req.query; // hoặc req.body nếu dùng POST
+  if (!email) {
+    return sendResponse(res, 400, "Thiếu email", "error");
+  }
+  const user = await UserRepository.findUserByEmail(email);
+  if (user) {
+    return sendResponse(res, 200, "Email đã tồn tại", "error", { exists: true });
+  }
+  return sendResponse(res, 200, "Email hợp lệ", "success", { exists: false });
+};
+
+const checkPhoneExists = async (req, res) => {
+  const { phone } = req.query;
+  if (!phone) {
+    return sendResponse(res, 400, "Thiếu phone", "error");
+  }
+  const user = await UserRepository.findUserByEmailOrPhone(null, phone);
+  if (user) {
+    return sendResponse(res, 200, "Phone đã tồn tại", "error", { exists: true });
+  }
+  return sendResponse(res, 200, "Phone hợp lệ", "success", { exists: false });
+};
+
+module.exports = {
+  updateUser: exports.updateUser,
+  addOrUpdateAvatar: exports.addOrUpdateAvatar,
+  getUserByIdOrEmail: exports.getUserByIdOrEmail,
+  getAllUsers: exports.getAllUsers,
+  searchByNameOrPhone: exports.searchByNameOrPhone,
+  getUserFriends: exports.getUserFriends,
+  uploadAvatar: exports.uploadAvatar,
+  checkEmailExists,
+  checkPhoneExists,
 };

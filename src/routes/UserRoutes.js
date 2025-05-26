@@ -38,4 +38,11 @@ router.get("/friends", UserController.getUserFriends);
 // http://localhost:5000/api/user/friends/:userId
 router.get("/friends/:userId", UserController.getUserFriends);
 
+// Kiểm tra email đã tồn tại (GET: /api/user/check-email?email=...)
+router.get("/check-email", UserController.checkEmailExists);
+
+// Kiểm tra phone đã tồn tại (GET: /api/user/check-phone?phone=...)
+router.get("/check-phone", UserController.checkPhoneExists);
+
+
 module.exports = router;
